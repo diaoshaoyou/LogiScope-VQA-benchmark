@@ -1,5 +1,3 @@
-# LogiScope-VQA
-
 <div align="center">
 
 <h1>LogiScope-VQA</h1>
@@ -15,7 +13,9 @@
 
 ---
 
-> **📢 Preview Release.** During the review period, we publicly release a **10% preview subset**
+> [!IMPORTANT]
+> ### 🌟 Preview Release
+> During the review period, we publicly release a **10% preview subset**
 > (483 visual samples / 1,000 VQAs) so that reviewers and readers can inspect the data format and quality.
 > The **full benchmark** (5,394 visual samples / 10,274 VQAs) will be released upon paper acceptance.
 
