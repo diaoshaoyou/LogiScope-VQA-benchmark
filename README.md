@@ -1,4 +1,4 @@
-# LogiScope-VQA-benchmark
+# LogiScope-VQA
 
 <div align="center">
 
@@ -7,13 +7,17 @@
 <p><strong>Benchmarking Vision-Language Models for Logistics Hazard Identification<br> in Industrial Scenarios</strong></p>
 
 <a href=""><img src="https://img.shields.io/badge/📄-Paper-blue" alt="Paper"></a>
-<a href="https://huggingface.co/datasets/zhouhanjing/LogiScope-VQA"><img src="https://img.shields.io/badge/🤗-Dataset-yellow" alt="Dataset"></a>
+<a href="https://huggingface.co/datasets/zhouhanjing/LogiScope-VQA-preview"><img src="https://img.shields.io/badge/🤗-Dataset_(Preview)-yellow" alt="Dataset"></a>
 <a href="./LICENSE"><img src="https://img.shields.io/badge/Dataset_License-CC%20BY--NC--SA%204.0-orange.svg" alt="Dataset License"></a>
 <a href="./CODE_LICENSE"><img src="https://img.shields.io/badge/Code_License-MIT-green.svg" alt="Code License"></a>
 
 </div>
 
 ---
+
+> **📢 Preview Release.** During the review period, we publicly release a **10% preview subset**
+> (483 visual samples / 1,000 VQAs) so that reviewers and readers can inspect the data format and quality.
+> The **full benchmark** (5,394 visual samples / 10,274 VQAs) will be released upon paper acceptance.
 
 ## 🔍 Introduction
 
@@ -25,6 +29,8 @@ Built from **3.5 million surveillance clips** collected over one year across the
 - ❓ **10,274 human-validated VQAs** in multiple-choice and open-ended formats
 - 🎯 **18 core objects** and **20 risk types** grounded in real-world warehouse safety regulations
 - 💡 **Key findings** — fine-grained perception remains a major bottleneck, and safety risk bias is pervasive yet overlooked
+
+The figures and statistics throughout this README describe the **full** benchmark. The subset currently available for download is the [preview release](https://huggingface.co/datasets/zhouhanjing/LogiScope-VQA-preview) (~10% of the full data).
 
 <img src="./assets/benchmark_overview.png" alt="LogiScope-VQA Overview" width="100%">
 
@@ -45,12 +51,19 @@ The full task taxonomy spans three levels: **3 competency dimensions → 10 task
 <img src="./assets/task_taxonomy.png" alt="Task Taxonomy" width="70%">
 </div>
 
+## 💡 Key Findings
+
+All findings below are obtained on the **full** benchmark; the preview subset is not intended to reproduce these numbers.
+
+- **Fine-grained perception remains a major bottleneck.** Models struggle with low-resolution, wide-angle, heavily occluded, and densely cluttered surveillance footage, falling below even novice humans on fine-grained perception tasks.
+- **Safety risk bias is a significant yet overlooked issue.** Most models exhibit a prevalent conservative (over-reporting) bias, and even the strongest models fall far short of industrial production-grade readiness and fall far below human experts.
+
 
 ## 🚀 Getting Started
 
-The dataset is available on HuggingFace:
+The dataset is available on HuggingFace. The **preview subset** (483 visual samples / 1,000 VQAs) is available now; the full benchmark will follow upon paper acceptance.
 
-🔗 **[https://huggingface.co/datasets/zhouhanjing/LogiScope-VQA](https://huggingface.co/datasets/zhouhanjing/LogiScope-VQA)**
+🔗 **[https://huggingface.co/datasets/zhouhanjing/LogiScope-VQA-preview](https://huggingface.co/datasets/zhouhanjing/LogiScope-VQA-preview)**
 
 ```bash
 # Load the dataset via 🤗 datasets
@@ -60,14 +73,23 @@ pip install datasets
 ```python
 from datasets import load_dataset
 
-dataset = load_dataset("zhouhanjing/LogiScope-VQA")
+# Preview subset (~10%) — available now
+dataset = load_dataset("zhouhanjing/LogiScope-VQA-preview")
+
+# Full benchmark — available upon paper acceptance
+# dataset = load_dataset("zhouhanjing/LogiScope-VQA")
 ```
 
+In the preview repository, annotations live in `test_preview.json` and all media paths are relative to the repository root under `test_preview/`.
 
-## 💡 Key Findings
 
-- **Fine-grained perception remains a major bottleneck.** Models struggle with low-resolution, wide-angle, heavily occluded, and densely cluttered surveillance footage, falling below even novice humans on fine-grained perception tasks.
-- **Safety risk bias is a significant yet overlooked issue.** Most models exhibit a prevalent conservative (over-reporting) bias, and even the strongest models fall far short of industrial production-grade readiness and fall far below human experts.
+## 🗓️ Release Plan
+
+| Stage | Content | Status |
+| --- | --- | --- |
+| Review period | Preview subset — 483 visual samples / 1,000 VQAs | ✅ Available |
+| Upon acceptance | Full benchmark — 5,394 visual samples / 10,274 VQAs, plus evaluation code | ⏳ Planned |
+
 
 
 ## 📑 Citation
