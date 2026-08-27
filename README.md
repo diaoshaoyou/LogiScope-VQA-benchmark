@@ -2,7 +2,7 @@
 
 <h1>LogiScope-VQA</h1>
 
-<p><strong>Benchmarking Vision-Language Models for Logistics Hazard Identification<br> in Industrial Scenarios</strong></p>
+<p><strong>Benchmarking Vision-Language Models for Logistics Hazard Identification in Industrial Scenarios</strong></p>
 
 <a href=""><img src="https://img.shields.io/badge/📄-Paper-blue" alt="Paper"></a>
 <a href="https://huggingface.co/datasets/zhouhanjing/LogiScope-VQA-preview"><img src="https://img.shields.io/badge/🤗-Dataset_(Preview)-yellow" alt="Dataset"></a>
