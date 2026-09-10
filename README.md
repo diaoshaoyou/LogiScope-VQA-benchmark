@@ -4,7 +4,7 @@
 
 <p><strong>Benchmarking Vision-Language Models for Logistics Hazard Identification in Industrial Scenarios</strong></p>
 
-<a href=""><img src="https://img.shields.io/badge/📄-Paper-blue" alt="Paper"></a>
+<a href="https://arxiv.org/abs/2609.09790"><img src="https://img.shields.io/badge/📄-Paper-blue" alt="Paper"></a>
 <a href="https://huggingface.co/datasets/zhouhanjing/LogiScope-VQA-preview"><img src="https://img.shields.io/badge/🤗-Dataset_(Preview)-yellow" alt="Dataset"></a>
 <a href="./LICENSE"><img src="https://img.shields.io/badge/Dataset_License-CC%20BY--NC--SA%204.0-orange.svg" alt="Dataset License"></a>
 <a href="./CODE_LICENSE"><img src="https://img.shields.io/badge/Code_License-MIT-green.svg" alt="Code License"></a>
@@ -99,8 +99,8 @@ If you find LogiScope-VQA useful in your research, please cite:
 ```bibtex
 @article{zhou2026logiscope,
   title   = {LogiScope-VQA: Benchmarking Vision-Language Models for Logistics Hazard Identification in Industrial Scenarios},
-  author  = {Zhou, Hanjing and Yin, Mingze and Lian, Ying and Ma, Jun and Hsieh, Chang-Yu and Chou, Yanbing},
-  journal = {arXiv preprint arXiv:TODO},
+  author  = {Hanjing Zhou, Mingze Yin, Ying Lian, Jun Ma, Chang-Yu Hsieh, Yanbing Zhou},
+  journal = {arXiv preprint arXiv:2609.09790},
   year    = {2026}
 }
 ```
