@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>LogiScope-VQA</title>
+    <link rel="icon" type="image/png" href="assets/icon.png">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        @font-face {
+            font-family: 'MyArtFont'; 
+            src: url('LibreBaskerville-BoldItalic.ttf') format('truetype');
+            font-weight: 900;
+            font-style: italic;
+        }
+
+        body { margin: 0; padding: 0; padding-top: 64px; font-family: 'Microsoft YaHei', 'SimHei', Arial, sans-serif; background: #ffffff; color: #1f2540; -webkit-font-smoothing: antialiased; }
+        #plot { width: 1000px; height: 1000px; margin: 0 auto; }
+        
+        .instruction {
+            text-align: center;
+            margin: 60px 0;
+            perspective: 1000px;
+        }
+        
+        /* 大标题样式 - 蓝紫色渐变艺术字 */
+        .instruction h1 {
+            font-size: 50px;
+            font-weight: bold;
+            font-family: 'MyArtFont', serif; 
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, #5fa0f0 0%, #5b3298 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        
+        /* --- 新增：预览区容器 --- */
+        .preview-section {
+            position: relative;
+            width: 1000px;
+            height: 550px;
+            margin: 0 auto 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: visible;
+        }
+
+        #preview-plot {
+            width: 500px;
+            height: 500px;
+            z-index: 1;
+            opacity: 0.9;
+            position: relative;
+            overflow: hidden;
+            border-radius: 50%;
+        }
+
+        /* 悬停时的扇形图动画效果 */
+        #preview-plot .sunburst path {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-origin: center center;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+
+        /* 悬停某扇形时，其余扇形保持原色与原透明度不变，仅被悬停者放大高亮 */
+
+        #preview-plot .sunburst path:hover {
+            transform: scale(1.05);
+            filter: brightness(1.05) drop-shadow(0 4px 12px rgba(0,0,0,0.25));
+            z-index: 10;
+        }
+
+        /* 美化扇形图文字 */
+        #preview-plot .sunburst text {
+            font-family: 'Microsoft YaHei', 'SimHei', Arial, sans-serif !important;
+            font-weight: bold !important;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+
+        /* 添加内阴影效果，增加深度感 */
+        #preview-plot .sunburst path {
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        /* 优化白色间隙，使用半透明渐变 */
+        #preview-plot .sunburst path {
+            stroke: rgba(255,255,255,0.95);
+            stroke-width: 12px;
+        }
+
+        /* 完全隐藏 Plotly 默认悬停层 */
+        #preview-plot .hoverlayer {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        /* 中心白色圆形 */
+        #preview-plot::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 230px;
+            height: 230px;
+            background: white;
+            border-radius: 50%;
+            z-index: 2;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        /* --- 数据统计卡片 --- */
+        .stat-card {
+            position: absolute;
+            background: white;
+            padding: 12px 18px;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+            border: 1px solid rgba(102, 126, 234, 0.1);
+            z-index: 10;
+            text-align: center;
+            transition: all 0.3s ease;
+            animation: floating 4s ease-in-out infinite;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 25px rgba(102, 126, 234, 0.15);
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* 左侧三枚卡片 */
+        .card-1 { top: 15%; left: 6%; }  /* 左上 */
+        .card-3 { top: 45%; left: 0%; }  /* 左中 */
+        .card-5 { bottom: 15%; left: 6%; } /* 左下 */
+
+        /* 右侧三枚卡片 */
+        .card-2 { top: 15%; right: 8%; } /* 右上 */
+        .card-4 { top: 45%; right: -1%; } /* 右中 */
+        .card-6 { bottom: 15%; right: 7%; } /* 右下 */
+
+        /* 引线效果 (微调角度指向圆心) */
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            background: #ddd;
+            height: 1px;
+            width: 45px;
+            z-index: -1;
+        }
+
+        /* 左侧引线 */
+        .card-1::after { right: -45px; top: 70%; transform: rotate(20deg); }
+        .card-3::after { right: -45px; top: 50%; transform: rotate(0deg); }
+        .card-5::after { right: -45px; top: 30%; transform: rotate(-20deg); }
+
+        /* 右侧引线 */
+        .card-2::after { left: -45px; top: 70%; transform: rotate(-20deg); }
+        .card-4::after { left: -45px; top: 50%; transform: rotate(0deg); }
+        .card-6::after { left: -45px; top: 30%; transform: rotate(20deg); }
+
+        /* 让左右浮动的步调稍微错开，看起来更灵动 */
+        .card-1, .card-4, .card-5 { animation-delay: 0s; }
+        .card-2, .card-3, .card-6 { animation-delay: -2s; }
+
+        @keyframes floating {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        /* 顶部容器：包含提示词和工具栏 */
+        .top-bar-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px auto 0;
+            max-width: 1000px;
+            gap: 40px;  /* 增大提示词和工具栏之间的距离 */
+        }
+        
+        /* 提示词容器样式 */
+        .tips-container {
+            display: flex;
+            flex: 1;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        /* 单个提示词样式 */
+        .tip-item {
+            flex: 1;
+            text-align: center;
+            padding: 10px 20px;
+            color: #333;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: default;
+            white-space: nowrap;
+        }
+        
+        .tip-icon {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+        
+        /* 二级标题样式 */
+        .section-title {
+            text-align: center;
+            font-size: 26px;
+            font-weight: 700;
+            color: #333;
+            margin: 40px auto 30px;
+            display: block;
+            text-align: center;
+            padding: 15px 30px;
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        /* 内容块容器样式 */
+        .content-section {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        /* 第一块内容：旭日图部分 */
+        .sunburst-section {
+            margin-top: 60px;
+            margin-bottom: 90px;
+        }
+
+        /* Preview 容器 */
+        .preview-container {
+            margin-bottom: 90px;
+        }
+        
+        /* 旭日图容器，减少与tips的间距 */
+        #plot {
+            margin-top: 10px;
+        }
+        
+        /* 第二块内容：排行榜部分 */
+        .leaderboard-section {
+            margin-bottom: 95px;
+        }
+        
+        /* 第三块内容：联系部分 */
+        .contact-section {
+            margin-bottom: 60px;
+        }
+        
+        .contact-content {
+            text-align: center;
+            font-size: 16px;
+            line-height: 1.8;
+            color: #555;
+            background-color: #f9f9f9;
+            padding: 30px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+        
+        .contact-email {
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .contact-name {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        /* 引用信息 */
+        .citation-desc {
+            margin: 0 0 16px; color: #000;
+        }
+        
+        .citation-bibtex {
+            text-align: left;
+            background-color: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 16px 20px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #333;
+            overflow-x: auto;
+            white-space: pre;
+            text-shadow: none;
+        }
+        
+        /* 图例提示词样式 */
+        .legend-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px auto;
+            max-width: 1000px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .legend-item {
+            flex: 1;
+            text-align: center;
+            padding: 12px 20px;
+            color: #333;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: default;
+            background-color: #f5f5f5;
+        }
+        
+        .legend-item:first-child {
+            border-radius: 8px 0 0 8px;
+        }
+        
+        .legend-item:last-child {
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .legend-dark-green {
+            color: #1b5e20;
+            font-weight: bold;
+        }
+        
+        .legend-medium-green {
+            color: #4caf50;
+            font-weight: 600;
+        }
+
+        /* ---------------- 排行榜表格 ---------------- */
+        .leaderboard-table {
+            width: 100%;
+            max-width: 1150px;
+            margin: 20px auto;
+            border-collapse: collapse;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            table-layout: auto; /* 自动布局，模型列加宽、子任务列紧凑 */
+        }
+        
+        .leaderboard-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .leaderboard-table th { 
+            padding: 15px; 
+            text-align: center; 
+            font-weight: 600; 
+            font-size: 14px;
+        }
+        
+        /* 确保表头宽度固定，不受列显示/隐藏影响 */
+        .leaderboard-table thead th[rowspan] {
+            width: 120px; /* Models 列固定宽度 */
+        }
+        
+        /* 表头列宽交给自动布局，不再按 4 列等分 */
+        
+        /* 默认单元格样式 */
+        .leaderboard-table td {
+            padding: 12px 15px;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 14px;
+            color: #333; /* 默认深灰色 */
+        }
+
+        /* 重点：提高优先级！通过增加前缀来强制渲染绿色 */
+        .leaderboard-table td.rank-1 {
+            color: #1b5e20 !important; /* 第一名：深绿 */
+            font-weight: bold !important;
+        }
+        
+        .leaderboard-table td.rank-2 {
+            color: #4caf50 !important; /* 第二名：浅绿 */
+            font-weight: 600 !important;
+        }
+        
+        .leaderboard-table tbody tr:hover { background-color: #f5f5f5; }
+        .leaderboard-table tbody tr td:first-child { font-weight: 600; background-color: #fafafa; }
+        .gold-medal { margin-right: 5px; }
+        
+        /* 分类列之间的分割线 - 只为每个分类的最后一列（stability 列）添加浅灰色右边框 */
+        /* 使用 data-metric-type 属性选择，确保动态隐藏列时分割线仍然正确 */
+        /* 只对 tbody 生效，表头不加分割线 */
+        .leaderboard-table tbody td[data-metric-type="stability"] {
+            border-right: 1px solid #e0e0e0;
+        }
+
+        /* 分组分隔线（Model / Overall / 每个大类最后一列） */
+        .leaderboard-table td.gdiv,
+        .leaderboard-table th.gdiv { border-right: 1px solid rgba(0,0,0,0.18); }
+        .leaderboard-table thead th.gdiv { border-right: 1px solid rgba(255,255,255,0.45); }
+
+        /* 模型名列不换行、略加宽 */
+        .leaderboard-table tbody td:first-child { white-space: nowrap; min-width: 150px; }
+
+        /* 高亮：青=专有最优，黄=开源最优，淡靓=专家整行 */
+        .leaderboard-table td.best-prop { background-color: #cfecef; font-weight: 600; }
+        .leaderboard-table td.best-os  { background-color: #f6ef9f; font-weight: 600; }
+        .leaderboard-table td.expert    { background-color: #eae8fb; font-weight: 600; }
+
+        /* 分组小标题行 */
+        .leaderboard-table tr.section-row td {
+            background: #f0f0f0; color: #333; font-weight: 700; font-style: italic;
+            text-align: center; border-right: none;
+        }
+        .leaderboard-table tr.section-row td:first-child { background: #f0f0f0; }
+
+        /* 表下注释 */
+        .table-note {
+            width: 1150px; margin: 6px auto 0; font-size: 12px; color: #666; line-height: 1.7;
+        }
+        .legend-teal, .legend-yellow, .legend-lilac {
+            padding: 1px 8px; border-radius: 3px; color: #333; font-size: 12px;
+        }
+        .legend-teal { background-color: #cfecef; }
+        .legend-yellow { background-color: #f6ef9f; }
+        .legend-lilac  { background-color: #eae8fb; }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            /* Flexbox 居中布局 */
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 900px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            /* 防止过高超出屏幕 */
+            max-height: 90vh;
+            overflow-y: auto;
+            /* 移除 margin auto，由 flex 控制居中 */
+            margin: 0;
+            position: relative;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        .modal-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .modal-question {
+            font-size: 16px;
+            margin-bottom: 15px;
+            line-height: 1.6;
+            color: #555;
+        }
+        
+        .modal-options {
+            margin-bottom: 15px;
+        }
+        
+        .modal-option {
+            margin: 5px 0;
+            padding: 8px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        
+        .modal-answer {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+        
+        .modal-media {
+            margin-top: 15px;
+        }
+        
+        .modal-media-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #666;
+        }
+        
+        .modal-image {
+            max-width: 100%;
+            max-height: 300px;
+            margin: 5px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .modal-video {
+            max-width: 100%;
+            max-height: 300px;
+            margin: 5px;
+            border-radius: 4px;
+        }
+
+        /* 全屏图片查看器样式 */
+        .fullscreen-image {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.95);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        .fullscreen-image img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+        
+        .fullscreen-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 2001;
+        }
+        
+        .fullscreen-close:hover {
+            color: #ccc;
+        }
+        
+        .modal-image {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .modal-image:hover {
+            transform: scale(1.02);
+        }
+
+        /* ===================== v2 layout ===================== */
+        :root {
+            --brand-1: #5b3298;
+            --brand-2: #5fa0f0;
+            --ink: #1f2540;
+            --muted: #6b7280;
+            --line: #e3e7f0;
+            --card: #ffffff;
+            --nav-h: 64px;
+        }
+        html { scroll-behavior: smooth; }
+
+        /* top navigation bar */
+        .site-nav {
+            position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);
+            background: rgba(255,255,255,0.82);
+            -webkit-backdrop-filter: saturate(180%) blur(12px);
+            backdrop-filter: saturate(180%) blur(12px);
+            border-bottom: 1px solid var(--line);
+            z-index: 900;
+        }
+        .nav-inner {
+            max-width: 1200px; height: 100%; margin: 0 auto; padding: 0 24px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .nav-brand { display: flex; align-items: center; gap: 10px; }
+        .nav-logo { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; display: block; }
+        .nav-title {
+            font-size: 19px; font-weight: 800; letter-spacing: .3px;
+            background: linear-gradient(90deg, var(--brand-2), var(--brand-1));
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent; color: transparent;
+        }
+        .nav-links { display: flex; align-items: center; gap: 4px; }
+        .nav-links a {
+            color: #4b5563; text-decoration: none; font-size: 15px; font-weight: 600;
+            padding: 8px 14px; border-radius: 9px; transition: all .2s ease;
+        }
+        .nav-links a:hover { background: #eef1fb; color: var(--brand-1); }
+
+        /* page frame / container */
+        .page-container {
+            max-width: 1200px; margin: 0 auto; padding: 24px 24px 8px;
+        }
+
+        /* hero subtitle */
+        .hero-sub {
+            max-width: none; margin: 16px auto 0; font-size: 19.5px; font-weight: 600;
+            line-height: 1.5; color: #1f2540; white-space: nowrap;
+        }
+        @media (max-width: 940px) { .hero-sub { white-space: normal; font-size: 17px; } }
+        .hero-logo { width: 92px; height: 92px; object-fit: contain; display: block; margin: 0 auto 14px; }
+        /* affiliation strip: muted, small, below author line */
+        .hero-affil {
+            display: flex; align-items: center; justify-content: center;
+            flex-wrap: wrap; gap: 8px 16px;
+            margin: 14px auto 0; font-size: 14.5px; color: var(--muted);
+        }
+        .hero-affil .affil { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
+        .hero-affil .affil img { max-height: 22px; max-width: 88px; height: auto; width: auto; object-fit: contain; }
+        .hero-affil .affil img[alt="Alibaba"] { max-height: 18px; max-width: 74px; }
+        .hero-affil .affil-sep { color: #c4c9d4; }
+
+        /* hero banner */
+        .instruction {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 44px 24px 40px;
+            margin: 8px 0 36px;
+            box-shadow: 0 10px 30px rgba(31,37,64,0.06);
+        }
+        .hero-byline { margin: 14px auto 0; font-size: 15px; color: #5a6172; }
+        .hero-byline b { color: var(--brand-1); }
+        .hero-actions {
+            display: flex; flex-wrap: wrap; gap: 12px;
+            justify-content: center; margin-top: 24px;
+        }
+        .hero-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px; border-radius: 999px; font-size: 15px;
+            font-weight: 600; text-decoration: none; transition: all .2s ease;
+            border: 1px solid transparent;
+        }
+        .hero-btn.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff; box-shadow: 0 6px 16px rgba(102,126,234,0.35);
+        }
+        .hero-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102,126,234,0.45); }
+        .hero-btn.ghost {
+            background: #fff; color: var(--brand-1); border-color: #d7daf0;
+        }
+        .hero-btn.ghost:hover { background: #eef1fb; }
+
+        /* carded sections */
+        .sunburst-section, .intro-section, .leaderboard-section, .bias-section, .contact-section {
+            max-width: 100%;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 32px 20px;
+            margin-top: 16px;
+            margin-bottom: 32px;
+            box-shadow: 0 8px 28px rgba(31,37,64,0.06);
+        }
+        .content-section[id] { scroll-margin-top: calc(var(--nav-h) + 20px); }
+
+        /* section title accent */
+        .section-title { letter-spacing: .3px; }
+        .section-title::after {
+            content: ""; display: block; width: 64px; height: 4px;
+            border-radius: 2px; margin: 12px auto 0;
+            background: linear-gradient(90deg, var(--brand-2), var(--brand-1));
+        }
+
+        /* footer */
+        .site-footer {
+            margin-top: 40px; padding: 28px 24px;
+            background: linear-gradient(135deg, #1f2540 0%, #2a2150 100%);
+            color: #cdd3e6;
+        }
+        .footer-inner {
+            max-width: 1200px; margin: 0 auto;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 16px; flex-wrap: wrap; font-size: 14px;
+        }
+        .footer-inner a { color: #a9c4ff; text-decoration: none; font-weight: 600; }
+        .footer-inner a:hover { text-decoration: underline; }
+        .footer-license { max-width: 1200px; margin: 10px auto 0; font-size: 13px; color: #8a93b5; text-align: center; }
+        .footer-license a { color: #a9c4ff; text-decoration: none; font-weight: 600; }
+        .footer-license a:hover { text-decoration: underline; }
+
+        /* ===== Bias analysis (interactive scatter) ===== */
+        .bias-controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 6px 0 4px; }
+        .bias-btn {
+            padding: 8px 16px; border-radius: 999px; font-size: 14px; font-weight: 600;
+            border: 1px solid #d7daf0; background: #fff; color: var(--brand-1); cursor: pointer;
+            transition: all .2s ease;
+        }
+        .bias-btn:hover { background: #eef1fb; }
+        .bias-btn.active { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border-color: transparent; }
+        #bias-plot { width: 100%; max-width: 980px; height: 560px; margin: 8px auto 0; }
+        .bias-cap { max-width: 900px; margin: 14px auto 0; font-size: 14px; color: var(--muted); line-height: 1.65; text-align: left; }
+        .bias-cap b { color: #1f2540; }
+
+        @media (max-width: 720px) {
+            .nav-links a { padding: 8px 9px; font-size: 13px; }
+            .nav-title { font-size: 16px; }
+        }
+
+        /* ===== Introduction section ===== */
+        .badge-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 8px; }
+        .badge { font-size: 12.5px; font-weight: 600; color: #fff; padding: 5px 12px; border-radius: 999px; letter-spacing: .2px; text-decoration: none; transition: all .2s ease; }
+        .badge:hover { transform: translateY(-1px); filter: brightness(1.05); }
+        .badge.b-blue { background: #3b82f6; } .badge.b-yellow { background: #eab308; }
+        .badge.b-orange { background: #f97316; } .badge.b-green { background: #22c55e; }
+        .badge.b-dark { background: #24292e; }
+        .lead { max-width: 880px; margin: 0 auto 30px; font-size: 16.5px; line-height: 1.85; color: #000; text-align: left; }
+        .lead b { color: var(--brand-1); }
+        .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 920px; margin: 0 auto 36px; }
+        .stat-tile { background: #ffffff; border: 1px solid var(--line); border-radius: 14px; padding: 20px 16px; text-align: center; }
+        .stat-tile .num { font-size: 30px; font-weight: 800; line-height: 1.1; background: linear-gradient(90deg, #5fa0f0, #5b3298); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-tile .cap { font-size: 13.5px; color: #6b7280; margin-top: 6px; font-weight: 600; line-height: 1.4; }
+        .findings { max-width: 900px; margin: 0 auto 30px; text-align: left; }
+        .findings h3 { font-size: 18px; margin: 0 0 16px; color: #1f2540; font-weight: 700; }
+        .findings-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 4px 14px rgba(0,0,0,.04); padding: 6px 0; overflow: hidden; }
+        .fi-item { display: flex; align-items: flex-start; gap: 16px; padding: 18px 24px; }
+        .fi-item + .fi-item { border-top: 1px solid var(--line); }
+        .fi-num { flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; background: #667eea; color: #fff; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+        .fi-content { font-size: 14.5px; line-height: 1.7; color: #3b4256; }
+        .fi-content b { color: #1f2540; display: block; margin-bottom: 4px; }
+        .preview-note { max-width: 900px; margin: 6px auto 0; display: flex; gap: 12px; align-items: flex-start; padding: 16px 18px; border-radius: 12px; background: #fff7ed; border: 1px solid #fed7aa; color: #7c2d12; font-size: 14px; line-height: 1.65; text-align: left; }
+        .preview-note .pn-icon { font-size: 20px; line-height: 1.3; }
+        .preview-note b { color: #7c2d12; }
+        @media (max-width: 820px) {
+            .stat-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-nav">
+        <div class="nav-inner">
+            <div class="nav-brand">
+                <img class="nav-logo" src="assets/icon.png" alt="LogiScope-VQA icon">
+                <span class="nav-title">LogiScope-VQA</span>
+            </div>
+            <nav class="nav-links">
+                <a href="#intro">Introduction</a>
+                <a href="#statistics">Statistics</a>
+                <a href="#leaderboard">Leaderboard</a>
+                <a href="#bias">Bias Analysis</a>
+                <a href="#citation">Citation</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page-container">
+    <div class="instruction">
+        <img class="hero-logo" src="assets/icon.png" alt="LogiScope-VQA logo">
+        <h1 style="margin: 0; text-align: center;">LogiScope-VQA</h1>
+        <p class="hero-sub">Benchmarking Vision-Language Models for Logistics Hazard Identification in Industrial Scenarios</p>
+        <p class="hero-byline">Hanjing Zhou, Mingze Yin, Ying Lian, Jun Ma, Chang-Yu Hsieh, Yanbing Zhou</p>
+        <div class="hero-affil">
+            <span class="affil"><img src="assets/alibaba.png" alt="Alibaba">Cainiao Group, Alibaba Group</span>
+            <span class="affil-sep">·</span>
+            <span class="affil"><img src="assets/zju.png" alt="Zhejiang University">Zhejiang University</span>
+        </div>
+        <div class="badge-row" style="margin-top:16px">
+            <a href="https://arxiv.org/abs/2609.09790" target="_blank" rel="noopener" class="badge b-blue">📄 Paper</a>
+            <a href="https://huggingface.co/datasets/zhouhanjing/LogiScope-VQA-preview" target="_blank" rel="noopener" class="badge b-yellow">🤗 Dataset (Preview)</a>
+            <a href="https://github.com/diaoshaoyou/LogiScope-VQA-benchmark" target="_blank" rel="noopener" class="badge b-dark"><svg viewBox="0 0 24 24" width="15" height="15" fill="#fff" style="display:inline-block;vertical-align:-3px;margin-right:5px;"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>GitHub</a>
+        </div>
+    </div>
+
+    <!-- Introduction -->
+    <div class="content-section intro-section" id="intro">
+        <div class="section-title">Introduction</div>
+
+        <p class="lead"><b>LogiScope-VQA</b> is the first dedicated benchmark for evaluating Large Multimodal Models (LMMs) on logistics hazard identification in real-world industrial scenarios. Built from 3.5 million surveillance clips collected over one year across the global warehouse parks of Cainiao, a leading intelligent logistics company, every question is grounded in real-world warehouse safety regulations.</p>
+
+        <!-- Benchmark overview figure (merged from Overview) -->
+        <div class="preview-section">
+            <!-- 左侧卡片列 -->
+            <div class="stat-card card-1">
+                <div class="stat-value">5,394</div>
+                <div class="stat-label">Images &amp; Videos</div>
+            </div>
+            <div class="stat-card card-3">
+                <div class="stat-value">10,274</div>
+                <div class="stat-label">Questions</div>
+            </div>
+            <div class="stat-card card-5">
+                <div class="stat-value">18</div>
+                <div class="stat-label">Core Objects</div>
+            </div>
+
+            <!-- 中间预览图 -->
+            <div id="preview-plot"></div>
+
+            <!-- 右侧卡片列 -->
+            <div class="stat-card card-2">
+                <div class="stat-value">39</div>
+                <div class="stat-label">Subtasks</div>
+            </div>
+            <div class="stat-card card-4">
+                <div class="stat-value">20</div>
+                <div class="stat-label">Safety Risks</div>
+            </div>
+            <div class="stat-card card-6">
+                <div class="stat-value">100%</div>
+                <div class="stat-label">Human-Verified</div>
+            </div>
+        </div>
+
+        <div class="findings">
+            <h3>Key Findings</h3>
+            <div class="findings-card">
+                <div class="fi-item"><span class="fi-num">1</span><div class="fi-content"><b>Fine-grained perception remains a major bottleneck.</b> Models struggle with low-resolution, wide-angle, heavily occluded and densely cluttered footage, falling below even novice humans.</div></div>
+                <div class="fi-item"><span class="fi-num">2</span><div class="fi-content"><b>Safety risk bias is pervasive yet overlooked.</b> Most models show a conservative (over-reporting) bias; even the strongest fall far short of production-grade readiness and human experts.</div></div>
+            </div>
+        </div>
+
+        <div class="preview-note">
+            <span class="pn-icon">🌟</span>
+            <span><b>Preview Release.</b> During review we release a 10% preview subset (483 visual samples / 1,000 VQAs); the full benchmark (5,394 samples / 10,274 VQAs) plus evaluation code ships upon paper acceptance. Figures above describe the full benchmark.</span>
+        </div>
+    </div>
+
+    <!-- Overview figure merged into Introduction above -->
+
+
+    <!-- 第一块内容：旭日图部分 -->
+    <div class="content-section sunburst-section" id="statistics">
+        <!-- 二级标题 -->
+        <div class="section-title">Interactive Statistics Viewer</div>
+        
+        <!-- 顶部栏：提示词和工具栏 -->
+        <div class="top-bar-container">
+            <!-- 提示词区域 -->
+            <div class="tips-container">
+                <div class="tip-item"><span class="tip-icon">🔍</span><b>Hover</b> to view quantities</div>
+                <div class="tip-item"><span class="tip-icon">📊</span><b>Click regions</b> for details</div>
+                <div class="tip-item"><span class="tip-icon">🏠</span><b>Click center</b> to return</div>
+            </div>
+            
+            <!-- 工具栏容器 -->
+            <div class="toolbar-container"></div>
+        </div>
+        
+        <div id="plot"></div>
+    </div>
+    
+    <!-- 第二块内容：排行榜部分 -->
+    <div class="content-section leaderboard-section" id="leaderboard">
+        <!-- 二级标题 -->
+        <div class="section-title">Leaderboard</div>
+        
+        <!-- 图例提示词 -->
+        <div class="legend-container">
+            <span class="legend-item"><span class="legend-teal">Teal</span>: best proprietary</span>
+            <span class="legend-item"><span class="legend-yellow">Yellow</span>: best open-source</span>
+            <span class="legend-item"><span class="legend-lilac">Lilac</span>: human expert</span>
+        </div>
+
+        <!-- 排行榜表格 -->
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th rowspan="2" class="gdiv">Model</th>
+                    <th rowspan="2" class="gdiv">Overall</th>
+                    <th colspan="3" class="gdiv">Industrial Element Perception</th>
+                    <th colspan="3" class="gdiv">Warehouse Knowledge Understanding</th>
+                    <th colspan="4">Potential Risk Reasoning</th>
+                </tr>
+                <tr>
+                    <th>FP-S</th><th>FP-C</th><th class="gdiv">CP</th>
+                    <th>WC</th><th>SR</th><th class="gdiv">OR</th>
+                    <th>PAC</th><th>FM</th><th>PSD</th><th>EOC</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr class="section-row"><td colspan="12">Proprietary Large Multimodal Models</td></tr>
+                <tr><td class="gdiv">Claude-Sonnet-4.6</td><td class="gdiv">0.64</td><td>0.63</td><td>0.64</td><td class="gdiv">0.86</td><td>0.90</td><td>0.58</td><td class="gdiv">0.20</td><td>0.49</td><td>0.76</td><td>0.58</td><td>0.62</td></tr>
+                <tr><td class="gdiv">Claude-Opus-4.7</td><td class="gdiv">0.70</td><td>0.64</td><td>0.61</td><td class="gdiv">0.88</td><td>0.89</td><td>0.60</td><td class="gdiv">0.30</td><td>0.74</td><td>0.82</td><td>0.65</td><td>0.79</td></tr>
+                <tr><td class="gdiv">Gemini-3.1-Pro</td><td class="gdiv">0.68</td><td class="best-prop">0.72</td><td class="best-prop">0.70</td><td class="best-prop gdiv">0.91</td><td>0.92</td><td class="best-prop">0.66</td><td class="gdiv">0.30</td><td>0.48</td><td>0.82</td><td>0.58</td><td>0.61</td></tr>
+                <tr><td class="gdiv">GPT-5.4</td><td class="gdiv">0.69</td><td>0.59</td><td>0.58</td><td class="gdiv">0.90</td><td>0.93</td><td>0.59</td><td class="gdiv">0.25</td><td>0.58</td><td class="best-prop">0.84</td><td class="best-prop">0.69</td><td>0.78</td></tr>
+                <tr><td class="gdiv">GPT-5.5</td><td class="best-prop gdiv">0.71</td><td>0.62</td><td>0.68</td><td class="gdiv">0.78</td><td class="best-prop">0.95</td><td>0.59</td><td class="gdiv">0.20</td><td class="best-prop">0.79</td><td>0.82</td><td>0.65</td><td class="best-prop">0.81</td></tr>
+                <tr><td class="gdiv">Qwen3.7-Plus</td><td class="gdiv">0.66</td><td>0.67</td><td>0.64</td><td class="gdiv">0.89</td><td class="best-prop">0.95</td><td>0.56</td><td class="best-prop gdiv">0.40</td><td>0.48</td><td>0.83</td><td>0.53</td><td>0.69</td></tr>
+
+                <tr class="section-row"><td colspan="12">Open-source Large Multimodal Models</td></tr>
+                <tr><td class="gdiv">Kimi-K2-Thinking</td><td class="gdiv">0.49</td><td>0.45</td><td>0.54</td><td class="gdiv">0.72</td><td class="best-os">0.96</td><td>0.18</td><td class="gdiv">0.05</td><td>0.15</td><td>0.30</td><td>0.29</td><td>0.14</td></tr>
+                <tr><td class="gdiv">Kimi-K2.6</td><td class="gdiv">0.62</td><td>0.61</td><td>0.60</td><td class="gdiv">0.89</td><td>0.93</td><td>0.45</td><td class="gdiv">0.20</td><td>0.57</td><td class="best-os">0.85</td><td>0.59</td><td>0.66</td></tr>
+                <tr><td class="gdiv">Qwen3-VL-8B</td><td class="gdiv">0.50</td><td>0.48</td><td>0.44</td><td class="gdiv">0.89</td><td>0.87</td><td>0.09</td><td class="gdiv">0.05</td><td>0.42</td><td>0.73</td><td>0.57</td><td>0.65</td></tr>
+                <tr><td class="gdiv">Qwen3-VL-32B</td><td class="gdiv">0.55</td><td>0.55</td><td>0.54</td><td class="gdiv">0.83</td><td>0.92</td><td>0.27</td><td class="gdiv">0.15</td><td>0.46</td><td>0.74</td><td>0.60</td><td>0.59</td></tr>
+                <tr><td class="gdiv">Qwen3-VL-235B</td><td class="gdiv">0.64</td><td>0.64</td><td>0.59</td><td class="gdiv">0.89</td><td>0.91</td><td>0.55</td><td class="gdiv">0.25</td><td>0.43</td><td>0.73</td><td>0.60</td><td>0.67</td></tr>
+                <tr><td class="gdiv">Qwen3-VL-Plus</td><td class="gdiv">0.34</td><td>0.53</td><td>0.45</td><td class="gdiv">0.76</td><td>0.91</td><td>0.15</td><td class="gdiv">0.05</td><td>0.20</td><td>0.57</td><td>0.30</td><td>0.13</td></tr>
+                <tr><td class="gdiv">Qwen3.5-Plus</td><td class="best-os gdiv">0.70</td><td class="best-os">0.66</td><td class="best-os">0.65</td><td class="best-os gdiv">0.90</td><td>0.93</td><td class="best-os">0.61</td><td class="best-os gdiv">0.45</td><td>0.48</td><td>0.84</td><td>0.59</td><td>0.77</td></tr>
+                <tr><td class="gdiv">InternVL3.5</td><td class="gdiv">0.33</td><td>0.48</td><td>0.39</td><td class="gdiv">0.88</td><td>0.69</td><td>0.04</td><td class="gdiv">0.05</td><td>0.44</td><td>0.83</td><td>0.42</td><td>0.17</td></tr>
+                <tr><td class="gdiv">LLaVA-v1.6-7B</td><td class="gdiv">0.50</td><td>0.34</td><td>0.30</td><td class="gdiv">0.48</td><td>0.60</td><td>0.21</td><td class="gdiv">0.05</td><td class="best-os">0.85</td><td>0.62</td><td>0.69</td><td class="best-os">0.82</td></tr>
+                <tr><td class="gdiv">MiMo-VL-7B-RL</td><td class="gdiv">0.44</td><td>0.46</td><td>0.39</td><td class="gdiv">0.65</td><td>0.32</td><td>0.05</td><td class="gdiv">0.10</td><td>0.44</td><td>0.74</td><td class="best-os">0.70</td><td>0.60</td></tr>
+                <tr><td class="gdiv">GLM-4.7</td><td class="gdiv">0.48</td><td>0.40</td><td>0.41</td><td class="gdiv">0.70</td><td>0.95</td><td>0.20</td><td class="gdiv">0.15</td><td>0.06</td><td>0.40</td><td>0.29</td><td>0.16</td></tr>
+                <tr><td class="gdiv">GLM-5.2</td><td class="gdiv">0.53</td><td>0.44</td><td>0.45</td><td class="gdiv">0.72</td><td>0.95</td><td>0.20</td><td class="gdiv">0.15</td><td>0.41</td><td>0.45</td><td>0.37</td><td>0.38</td></tr>
+                <tr><td class="gdiv">MiniMax-M2.1</td><td class="gdiv">0.43</td><td>0.47</td><td>0.49</td><td class="gdiv">0.54</td><td>0.93</td><td>0.19</td><td class="gdiv">0.15</td><td>0.50</td><td>0.43</td><td>0.40</td><td>0.60</td></tr>
+                <tr><td class="gdiv">MiniMax-M2.5</td><td class="gdiv">0.46</td><td>0.50</td><td>0.54</td><td class="gdiv">0.61</td><td>0.93</td><td>0.18</td><td class="gdiv">0.15</td><td>0.42</td><td>0.41</td><td>0.43</td><td>0.59</td></tr>
+
+                <tr class="section-row"><td colspan="12">Human Performance</td></tr>
+                <tr><td class="gdiv">Novice Student</td><td class="gdiv">0.73</td><td>0.80</td><td>0.81</td><td class="gdiv">0.85</td><td>0.76</td><td>0.58</td><td class="gdiv">0.75</td><td>0.75</td><td>0.80</td><td>0.70</td><td>0.67</td></tr>
+                <tr><td class="expert gdiv">Logistics Expert</td><td class="expert gdiv">0.95</td><td class="expert">0.97</td><td class="expert">0.97</td><td class="expert gdiv">0.96</td><td class="expert">1.00</td><td class="expert">0.99</td><td class="expert gdiv">0.95</td><td class="expert">0.93</td><td class="expert">0.95</td><td class="expert">0.95</td><td class="expert">0.91</td></tr>
+            </tbody>
+        </table>
+
+        <div class="table-note">
+            FP-S: Fine-grained Perception of Single-instance&nbsp;&nbsp;·&nbsp;&nbsp;
+            FP-C: Fine-grained Perception of Cross-instance&nbsp;&nbsp;·&nbsp;&nbsp;
+            CP: Coarse-grained Perception&nbsp;&nbsp;·&nbsp;&nbsp;
+            WC: Warehouse Commonsense&nbsp;&nbsp;·&nbsp;&nbsp;
+            SR: Spatial Relation&nbsp;&nbsp;·&nbsp;&nbsp;
+            OR: Operator Role&nbsp;&nbsp;·&nbsp;&nbsp;
+            PAC: Perimeter Access Control&nbsp;&nbsp;·&nbsp;&nbsp;
+            FM: Fire Monitoring&nbsp;&nbsp;·&nbsp;&nbsp;
+            PSD: Personnel Safety Duty&nbsp;&nbsp;·&nbsp;&nbsp;
+            EOC: Equipment Operation Compliance
+        </div>
+    </div>
+    
+    <!-- 第二块内容：Safety Bias Analysis（交互式散点图） -->
+    <div class="content-section bias-section" id="bias">
+        <div class="section-title">Safety Bias Analysis</div>
+        <div class="bias-controls" id="bias-controls"></div>
+        <div id="bias-plot"></div>
+        <p class="bias-cap">Each point is a model placed by its <b>false-positive (safe&rarr;risk) rate</b> and <b>risk recall</b>; marker area scales with <b>|Risk Bias Score|</b>. The shaded green corner marks the <b>industrial-grade deployment zone</b> (FP&nbsp;&lt;&nbsp;5%, recall&nbsp;&gt;&nbsp;90%) &mdash; no model reaches it. Toggle model families with the buttons or the legend.</p>
+    </div>
+
+    <!-- 第三块内容：引用信息 -->
+    <div class="content-section contact-section" id="citation">
+        <!-- 二级标题 -->
+        <div class="section-title">Citation</div>
+        
+        <!-- 引用内容 -->
+        <div class="contact-content">
+            <p class="citation-desc">If you find LogiScope-VQA useful in your research, please cite:</p>
+            <pre class="citation-bibtex">@article{zhou2026logiscope,
+  title   = {LogiScope-VQA: Benchmarking Vision-Language Models for Logistics Hazard Identification in Industrial Scenarios},
+  author  = {Hanjing Zhou, Mingze Yin, Ying Lian, Jun Ma, Chang-Yu Hsieh, Yanbing Zhou},
+  journal = {arXiv preprint arXiv:2609.09790},
+  year    = {2026}
+}</pre>
+        </div>
+    </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <span>© 2026 LogiScope-VQA</span>
+            <span><a href="mailto:zhj85393@gmail.com">zhj85393@gmail.com</a> · <a href="mailto:mzyin256@gmail.com">mzyin256@gmail.com</a></span>
+        </div>
+        <div class="footer-license">Dataset licensed under <a href="https://github.com/diaoshaoyou/LogiScope-VQA-benchmark/blob/main/LICENSE" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a> · Code licensed under <a href="https://github.com/diaoshaoyou/LogiScope-VQA-benchmark/blob/main/CODE_LICENSE" target="_blank" rel="noopener">MIT</a></div>
+    </footer>
+
+    <!-- 模态框 -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div class="modal-title" id="modal-title"></div>
+            <div class="modal-question" id="modal-question"></div>
+            <div class="modal-options" id="modal-options"></div>
+            <div class="modal-answer" id="modal-answer"></div>
+            <div class="modal-media" id="modal-media"></div>
+        </div>
+    </div>
+
+    <!-- 全屏图片查看器 -->
+    <div id="fullscreen-image" class="fullscreen-image">
+        <span class="fullscreen-close">&times;</span>
+        <img id="fullscreen-img" src="" alt="全屏图片">
+    </div>
+    
+    <script> 
+        const data = [{"branchvalues": "total", "ids": ["node_0", "node_1", "node_2", "node_3", "node_4", "node_5", "node_6", "node_7", "node_8", "node_9", "node_10", "node_11", "node_12", "node_13", "node_14", "node_15", "node_16", "node_17", "node_18", "node_19", "node_20", "node_21", "node_22", "node_23", "node_24", "node_25", "node_26", "node_27", "node_28", "node_29", "node_30", "node_31", "node_32", "node_33", "node_34", "node_35", "node_36", "node_37", "node_38", "node_39", "node_40", "node_41", "node_42", "node_43", "node_44", "node_45", "node_46", "node_47", "node_48", "node_49", "node_50", "node_51"], "labels": ["Industrial Element <br>Perception", "Fine-grained Perception <br>[Single-Instance]", "Attribute Recognition", "Object Location", "Counting", "Object Recognition", "Action Recognition", "Color", "Object Status", "Moving Direction", "Fine-grained Perception <br>[Cross-Instance]", "Interaction", "Attribute Comparison", "Coarse-grained Perception", "Quality", "Scene", "Style", "Consistency", "Warehouse Knowledge <br>Understanding", "Spatial Relation", "Spatial Relation", "Operator Role", "Operator Role", "Warehouse Commonsense", "Common Sense", "Physical Property", "Object Function", "Potential Risk <br>Reasoning", "Perimeter Access Control", "Warehouse Access Control", "Personnel Safety Duty", "Key Post Attendance", "Personal Protective Equipment", "Elevated Work #1", "Elevated Work #2", "Elevated Work #3", "Fire Monitoring", "Fire Monitoring", "Equipment Operation Compliance", "Dock Loading & Unloading #1", "Dock Loading & Unloading #2", "Dock Loading & Unloading #3", "Forklift Driving Compliance #1", "Forklift Driving Compliance #2", "Forklift Driving Compliance #3", "Forklift Driving Compliance #4", "Forklift Driving Compliance #5", "Forklift Driving Compliance #6", "Forklift Driving Compliance #7", "Forklift Driving Compliance #8", "Forklift Driving Compliance #9", "Conveyor Operation Compliance"], "marker": {"colors": ["#FF6B6B", "#FF9999", "#FFC6C6", "#FFC6C6", "#FFC6C6", "#FFC6C6", "#FFC6C6", "#FFC6C6", "#FFC6C6", "#FFC6C6", "#FF9999", "#FFC6C6", "#FFC6C6", "#FF9999", "#FFC6C6", "#FFC6C6", "#FFC6C6", "#FFC6C6", "#FFD93D", "#FFE57A", "#FFF1B7", "#FFE57A", "#FFF1B7", "#FFE57A", "#FFF1B7", "#FFF1B7", "#FFF1B7", "#4D96FF", "#80B3FF", "#B3D1FF", "#80B3FF", "#B3D1FF", "#B3D1FF", "#B3D1FF", "#B3D1FF", "#B3D1FF", "#80B3FF", "#B3D1FF", "#80B3FF", "#B3D1FF", "#B3D1FF", "#B3D1FF", "#B3D1FF", "#B3D1FF", "#B3D1FF", "#B3D1FF", "#B3D1FF", "#B3D1FF", "#B3D1FF", "#B3D1FF", "#B3D1FF", "#B3D1FF"]}, "maxdepth": 3, "parents": ["", "node_0", "node_1", "node_1", "node_1", "node_1", "node_1", "node_1", "node_1", "node_1", "node_0", "node_10", "node_10", "node_0", "node_13", "node_13", "node_13", "node_13", "", "node_18", "node_19", "node_18", "node_21", "node_18", "node_23", "node_23", "node_23", "", "node_27", "node_28", "node_27", "node_30", "node_30", "node_30", "node_30", "node_30", "node_27", "node_36", "node_27", "node_38", "node_38", "node_38", "node_38", "node_38", "node_38", "node_38", "node_38", "node_38", "node_38", "node_38", "node_38", "node_38"], "values": [3100.0, 1821.0, 550.0, 28.0, 418.0, 327.0, 61.0, 78.0, 315.0, 44.0, 1150.0, 1053.0, 97.0, 129.0, 2.0, 2.0, 15.0, 110.0, 2621.0, 1902.0, 1902.0, 20.0, 20.0, 699.0, 30.0, 383.0, 286.0, 4553.0, 65.0, 65.0, 1285.0, 358.0, 328.0, 199.66666666666666, 199.66666666666666, 199.66666666666666, 385.0, 385.0, 2817.9999999999995, 328.3333333333333, 328.3333333333333, 328.3333333333333, 153.22222222222223, 153.22222222222223, 153.22222222222223, 153.22222222222223, 153.22222222222223, 153.22222222222223, 153.22222222222223, 153.22222222222223, 153.22222222222223, 454.0], "type": "sunburst", "textfont": {"color": "black", "size": 12}, "customdata": [["https://example.com/general-perception", 3100.0, 30.17], ["https://example.com/General Perception/fine-grained-perception-[single-instance]", 1821.0, 17.72], ["https://example.com/Fine-grained Perception [Single-Instance]/attribute-recognition", 550.0, 5.35], ["https://example.com/Fine-grained Perception [Single-Instance]/object-location", 28.0, 0.27], ["https://example.com/Fine-grained Perception [Single-Instance]/counting", 418.0, 4.07], ["https://example.com/Fine-grained Perception [Single-Instance]/object-recognition", 327.0, 3.18], ["https://example.com/Fine-grained Perception [Single-Instance]/action-recognition", 61.0, 0.59], ["https://example.com/Fine-grained Perception [Single-Instance]/color", 78.0, 0.76], ["https://example.com/Fine-grained Perception [Single-Instance]/object-status", 315.0, 3.07], ["https://example.com/Fine-grained Perception [Single-Instance]/moving-direction", 44.0, 0.43], ["https://example.com/General Perception/fine-grained-perception-[cross-instance]", 1150.0, 11.19], ["https://example.com/Fine-grained Perception [Cross-Instance]/interaction", 1053.0, 10.25], ["https://example.com/Fine-grained Perception [Cross-Instance]/attribute-comparison", 97.0, 0.94], ["https://example.com/General Perception/coarse-grained-perception", 129.0, 1.26], ["https://example.com/Coarse-grained Perception/quality", 2.0, 0.02], ["https://example.com/Coarse-grained Perception/scene", 2.0, 0.02], ["https://example.com/Coarse-grained Perception/style", 15.0, 0.15], ["https://example.com/Coarse-grained Perception/consistency", 110.0, 1.07], ["https://example.com/general-reasoning", 2621.0, 25.51], ["https://example.com/General Reasoning/logic-reasoning", 1902.0, 18.51], ["https://example.com/Logic Reasoning/temporal-reasoning", 1902.0, 18.51], ["https://example.com/General Reasoning/relation-reasoning", 20.0, 0.19], ["https://example.com/Relation Reasoning/social-relation", 20.0, 0.19], ["https://example.com/General Reasoning/common-reasoning", 699.0, 6.8], ["https://example.com/Common Reasoning/common-sense-reasoning", 30.0, 0.29], ["https://example.com/Attribute Reasoning/physical-property", 383.0, 3.73], ["https://example.com/Attribute Reasoning/function-reasoning", 286.0, 2.78], ["https://example.com/Vertical Application Reasoning/vertical-application-reasoning", 4553.0, 44.32], ["https://example.com/Perimeter Access Control", 65.0, 0.63], ["https://example.com/Warehouse Access Control", 65.0, 0.63], ["https://example.com/Personnel Safety Duty", 1285.0, 12.51], ["https://example.com/Key Post Attendance", 358.0, 3.48], ["https://example.com/Personal Protective Equipment", 328.0, 3.19], ["https://example.com/Elevated Work #1", 199.66666666666666, 1.94], ["https://example.com/Elevated Work #2", 199.66666666666666, 1.94], ["https://example.com/Elevated Work #3", 199.66666666666666, 1.94], ["https://example.com/Fire Monitoring", 385.0, 3.75], ["https://example.com/Fire Monitoring", 385.0, 3.75], ["https://example.com/Equipment Operation Compliance", 2817.9999999999995, 27.43], ["https://example.com/Dock Loading & Unloading #1", 328.3333333333333, 3.2], ["https://example.com/Dock Loading & Unloading #2", 328.3333333333333, 3.2], ["https://example.com/Dock Loading & Unloading #3", 328.3333333333333, 3.2], ["https://example.com/Forklift Driving Compliance #1", 153.22222222222223, 1.49], ["https://example.com/Forklift Driving Compliance #2", 153.22222222222223, 1.49], ["https://example.com/Forklift Driving Compliance #3", 153.22222222222223, 1.49], ["https://example.com/Forklift Driving Compliance #4", 153.22222222222223, 1.49], ["https://example.com/Forklift Driving Compliance #5", 153.22222222222223, 1.49], ["https://example.com/Forklift Driving Compliance #6", 153.22222222222223, 1.49], ["https://example.com/Forklift Driving Compliance #7", 153.22222222222223, 1.49], ["https://example.com/Forklift Driving Compliance #8", 153.22222222222223, 1.49], ["https://example.com/Forklift Driving Compliance #9", 153.22222222222223, 1.49], ["https://example.com/Conveyor Operation Compliance", 454.0, 4.42]], "hovertemplate": "<b>%{label}</b><br>\u95ee\u9898\u6570: %{customdata[1]}<br>\u5360\u6bd4: %{customdata[2]}%<extra></extra>", "insidetextorientation": "radial", "text": ["Industrial Element <br>Perception<br>30.17%", "Fine-grained Perception <br>[Single-Instance]", "Attribute Recognition", "Object Location", "Counting", "Object Recognition", "Action Recognition", "Color", "Object Status", "Moving Direction", "Fine-grained Perception <br>[Cross-Instance]", "Interaction", "Attribute Comparison", "Coarse-grained Perception", "Quality", "Scene", "Style", "Consistency", "Warehouse Knowledge <br>Understanding<br>25.51%", "Spatial Relation", "Spatial Relation", "Operator Role", "Operator Role", "Warehouse Commonsense", "Common Sense", "Physical Property", "Object Function", "Potential Risk <br>Reasoning<br>44.32%", "Perimeter Access Control", "Warehouse Access Control", "Personnel Safety Duty", "Key Post Attendance", "Personal Protective Equipment", "Elevated Work #1", "Elevated Work #2", "Elevated Work #3", "Fire Monitoring", "Fire Monitoring", "Equipment Operation Compliance", "Dock Loading & Unloading #1", "Dock Loading & Unloading #2", "Dock Loading & Unloading #3", "Forklift Driving Compliance #1", "Forklift Driving Compliance #2", "Forklift Driving Compliance #3", "Forklift Driving Compliance #4", "Forklift Driving Compliance #5", "Forklift Driving Compliance #6", "Forklift Driving Compliance #7", "Forklift Driving Compliance #8", "Forklift Driving Compliance #9", "Conveyor Operation Compliance"], "textinfo": "text"}];
+        const layout = {"template": {"data": {"histogram2dcontour": [{"type": "histogram2dcontour", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "choropleth": [{"type": "choropleth", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "histogram2d": [{"type": "histogram2d", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "heatmap": [{"type": "heatmap", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "contourcarpet": [{"type": "contourcarpet", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "contour": [{"type": "contour", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "surface": [{"type": "surface", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "mesh3d": [{"type": "mesh3d", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "scatter": [{"fillpattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}, "type": "scatter"}], "parcoords": [{"type": "parcoords", "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterpolargl": [{"type": "scatterpolargl", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "bar": [{"error_x": {"color": "#2a3f5f"}, "error_y": {"color": "#2a3f5f"}, "marker": {"line": {"color": "#E5ECF6", "width": 0.5}, "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "bar"}], "scattergeo": [{"type": "scattergeo", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterpolar": [{"type": "scatterpolar", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "histogram": [{"marker": {"pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "histogram"}], "scattergl": [{"type": "scattergl", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatter3d": [{"type": "scatter3d", "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}}, "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scattermap": [{"type": "scattermap", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterternary": [{"type": "scatterternary", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scattercarpet": [{"type": "scattercarpet", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "carpet": [{"aaxis": {"endlinecolor": "#2a3f5f", "gridcolor": "white", "linecolor": "white", "minorgridcolor": "white", "startlinecolor": "#2a3f5f"}, "baxis": {"endlinecolor": "#2a3f5f", "gridcolor": "white", "linecolor": "white", "minorgridcolor": "white", "startlinecolor": "#2a3f5f"}, "type": "carpet"}], "table": [{"cells": {"fill": {"color": "#EBF0F8"}, "line": {"color": "white"}}, "header": {"fill": {"color": "#C8D4E3"}, "line": {"color": "white"}}, "type": "table"}], "barpolar": [{"marker": {"line": {"color": "#E5ECF6", "width": 0.5}, "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "barpolar"}], "pie": [{"automargin": true, "type": "pie"}]}, "layout": {"autotypenumbers": "strict", "colorway": ["#636efa", "#EF553B", "#00cc96", "#ab63fa", "#FFA15A", "#19d3f3", "#FF6692", "#B6E880", "#FF97FF", "#FECB52"], "font": {"color": "#2a3f5f"}, "hovermode": "closest", "hoverlabel": {"align": "left"}, "paper_bgcolor": "white", "plot_bgcolor": "#E5ECF6", "polar": {"bgcolor": "#E5ECF6", "angularaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "radialaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}}, "ternary": {"bgcolor": "#E5ECF6", "aaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "baxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "caxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}}, "coloraxis": {"colorbar": {"outlinewidth": 0, "ticks": ""}}, "colorscale": {"sequential": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]], "sequentialminus": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]], "diverging": [[0, "#8e0152"], [0.1, "#c51b7d"], [0.2, "#de77ae"], [0.3, "#f1b6da"], [0.4, "#fde0ef"], [0.5, "#f7f7f7"], [0.6, "#e6f5d0"], [0.7, "#b8e186"], [0.8, "#7fbc41"], [0.9, "#4d9221"], [1, "#276419"]]}, "xaxis": {"gridcolor": "white", "linecolor": "white", "ticks": "", "title": {"standoff": 15}, "zerolinecolor": "white", "automargin": true, "zerolinewidth": 2}, "yaxis": {"gridcolor": "white", "linecolor": "white", "ticks": "", "title": {"standoff": 15}, "zerolinecolor": "white", "automargin": true, "zerolinewidth": 2}, "scene": {"xaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}, "yaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}, "zaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}}, "shapedefaults": {"line": {"color": "#2a3f5f"}}, "annotationdefaults": {"arrowcolor": "#2a3f5f", "arrowhead": 0, "arrowwidth": 1}, "geo": {"bgcolor": "white", "landcolor": "#E5ECF6", "subunitcolor": "white", "showland": true, "showlakes": true, "lakecolor": "white"}, "title": {"x": 0.05}}}, "margin": {"t": 20, "b": 20, "l": 20, "r": 20}, "width": 1000, "height": 1000, "title": {"font": {"size": 20, "weight": "bold"}}, "font": {"size": 12, "family": "'Microsoft YaHei', 'SimHei', Arial, sans-serif"}};
+        const config = { responsive: true, displayModeBar: false };
+        
+        Plotly.newPlot('plot', data, layout, config).then(function() {
+            // --- 初始化预览图逻辑 ---
+            const renderHeroPlot = () => {
+                // 复制一份主数据，但进行简化处理
+                const previewData = JSON.parse(JSON.stringify(data));
+                
+                previewData[0].maxdepth = 1; // 只显示最里层
+                previewData[0].textinfo = "none"; // 默认不显示文字
+                previewData[0].hoverinfo = "none"; // 禁用默认悬停提示
+                previewData[0].hovertext = ""; // 清空悬停文本
+                previewData[0].marker.line = { width: 12, color: "rgba(255,255,255,0.95)" }; // 优化白色间隙
+                previewData[0].insidetextorientation = "horizontal"; // 使用水平排列
+                previewData[0].textfont = {
+                    family: "Microsoft YaHei, SimHei, Arial, sans-serif",
+                    size: 14,
+                    color: "#fff",
+                    weight: "bold"
+                };
+                previewData[0].textposition = "middle center";
+                
+                const previewLayout = {
+                    margin: { l: 0, r: 0, b: 0, t: 0 },
+                    width: 500,
+                    height: 500,
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                };
+
+                // 使用可交互模式，支持悬停动画效果，但禁用点击旋转
+                const previewPlotPromise = Plotly.newPlot('preview-plot', previewData, previewLayout, { 
+                    displayModeBar: false,
+                    responsive: false,
+                    clickmode: 'none'  // 禁用点击事件，防止旋转动画
+                });
+
+                // 在渲染完成前就阻止点击事件
+                previewPlotPromise.then((gd) => {
+                    // 覆盖 on 方法，阻止所有点击相关的事件注册
+                    const originalOn = gd.on;
+                    gd.on = function(event, callback) {
+                        if (event.includes('click') || event.includes('sunburst')) {
+                            // 不注册任何点击相关的事件
+                            return;
+                        }
+                        return originalOn.call(this, event, callback);
+                    };
+                });
+
+                return previewPlotPromise;
+            };
+
+            // 在页面加载时执行
+            renderHeroPlot().then(function(previewPlot) {
+                // 禁用点击事件，防止旋转动画 - 只禁用点击，保留悬停
+                setTimeout(function() {
+                    const paths = previewPlot.querySelectorAll('.sunburst path');
+                    paths.forEach(path => {
+                        // 只禁用点击事件，保留悬停效果
+                        path.onclick = function(e) { 
+                            e.preventDefault(); 
+                            e.stopPropagation(); 
+                            e.stopImmediatePropagation();
+                            return false; 
+                        };
+                        // 添加 mousedown 事件阻止
+                        path.onmousedown = function(e) { 
+                            e.preventDefault(); 
+                            e.stopPropagation(); 
+                            e.stopImmediatePropagation();
+                            return false; 
+                        };
+                    });
+                    // 禁用整个 sunburst 组的点击
+                    const sunburstGroup = previewPlot.querySelector('.sunburst');
+                    if (sunburstGroup) {
+                        sunburstGroup.onclick = function(e) { 
+                            e.preventDefault(); 
+                            e.stopPropagation(); 
+                            e.stopImmediatePropagation();
+                            return false; 
+                        };
+                        sunburstGroup.onmousedown = function(e) { 
+                            e.preventDefault(); 
+                            e.stopPropagation(); 
+                            e.stopImmediatePropagation();
+                            return false; 
+                        };
+                    }
+                }, 100);
+                
+                // 添加自定义悬停事件，在白色圆中心显示类别名称
+                const customTooltip = document.createElement('div');
+                customTooltip.style.cssText = `
+                    position: fixed;
+                    background: transparent;
+                    color: #4f46e5;
+                    font-family: 'Microsoft YaHei', 'SimHei', Arial, sans-serif';
+                    font-size: 28px;
+                    font-weight: bold;
+                    opacity: 1;
+                    padding: 0;
+                    border-radius: 0;
+                    pointer-events: none;
+                    z-index: 9999;
+                    text-shadow: none;
+                    display: none;
+                    white-space: nowrap;
+                `;
+                document.body.appendChild(customTooltip);
+
+                previewPlot.on('plotly_hover', function(data) {
+                    console.log('Hover event triggered:', data);
+                    if (data.points && data.points.length > 0) {
+                        let label = data.points[0].label;
+                        // 移除标签中的 <br> 标签
+                        label = label.replace(/<br>/g, '');
+                        console.log('Label:', label);
+                        customTooltip.textContent = label;
+                        customTooltip.style.display = 'block';
+                        
+                        // 计算白色圆的中心位置（即扇形图的中心）
+                        const plotRect = previewPlot.getBoundingClientRect();
+                        const centerX = plotRect.left + plotRect.width / 2;
+                        const centerY = plotRect.top + plotRect.height / 2;
+                        
+                        // 设置标签位置到白色圆正中心
+                        customTooltip.style.left = centerX + 'px';
+                        customTooltip.style.top = centerY + 'px';
+                        customTooltip.style.transform = 'translate(-50%, -50%)';
+                        console.log('Tooltip positioned at:', centerX, centerY);
+                    }
+                });
+
+                previewPlot.on('plotly_unhover', function() {
+                    console.log('Unhover event triggered');
+                    customTooltip.style.display = 'none';
+                });
+            });
+            // 将Plotly的工具栏移动到提示词旁边
+            setTimeout(function() {
+                const plotDiv = document.getElementById('plot');
+                const modeBar = plotDiv.querySelector('.plotly .modebar');
+                const toolbarContainer = document.querySelector('.toolbar-container');
+                
+                if (modeBar && toolbarContainer) {
+                    // 移除工具栏的默认样式
+                    modeBar.style.position = 'relative';
+                    modeBar.style.top = '0';
+                    modeBar.style.right = '0';
+                    modeBar.style.left = 'auto';
+                    
+                    // 将工具栏移动到自定义容器中
+                    toolbarContainer.appendChild(modeBar);
+                }
+            }, 100);
+        });
+        
+        // 设置全局字体为支持中文的字体
+        Plotly.restyle('plot', {
+            'textfont': {
+                'family': "'Microsoft YaHei', 'SimHei', Arial, sans-serif"
+            }
+        });
+        
+        const nodeContentMap = {"Attribute Recognition": {"question": "\u56fe\u7247\u4e2d\uff0c\u4f4d\u4e8e\u753b\u9762\u53f3\u4e0b\u65b9\u3001\u7a7f\u84dd\u8272\u9a6c\u7532\u7684\u7537\u6027\u662f\u5426\u4f69\u6234\u5b89\u5168\u5e3d\uff1f", "options": ["A. \u662f", "B. \u5426", "C. \u63d0\u95ee\u5bf9\u8c61\u4e0d\u5b58\u5728"], "answer": ["B"], "images": ["assets/20251211__1000703__1__inaccurate__2069_1765439252013_134993_1.jpg"], "videos": []}, "Object Location": {"question": "\u56fe\u7247\u4e2d\uff0c\u7a7f\u6a59\u8272\u9a6c\u7532\u7684\u7537\u6027\u7684\u753b\u9762\u4f4d\u7f6e\u662f\u4ec0\u4e48\uff1f", "options": ["A. \u4e0a\u65b9", "B. \u4e0b\u65b9", "C. \u5de6\u65b9", "D. \u53f3\u65b9", "E. \u5de6\u4e0a\u65b9", "F. \u5de6\u4e0b\u65b9", "G. \u53f3\u4e0a\u65b9", "H. \u53f3\u4e0b\u65b9", "I. \u4e2d\u5fc3", "J. \u63d0\u95ee\u5bf9\u8c61\u4e0d\u5b58\u5728"], "answer": ["B"], "images": ["assets/20251215__1000501__1__accurate__11452274_1765761780850_159380_1.jpg"], "videos": []}, "Counting": {"question": "\u56fe\u7247\u4e2d\uff0c\u662f\u5426\u51fa\u73b010\u4e2a\u4eba\uff1f", "options": ["A. \u662f", "B. \u5426"], "answer": ["B"], "images": ["assets/20251211__1000501__1__accurate__11452286_1765431637987_105459_1.jpg"], "videos": []}, "Object Recognition": {"question": "\u753b\u9762\u4e2d\u662f\u5426\u5b58\u5728\u4eba\uff1f", "options": ["A. \u662f", "B. \u5426"], "answer": ["A"], "images": ["assets/20251113__1000501__1__accurate__11452217_1763023885213_185685_1.jpg"], "videos": []}, "Action Recognition": {"question": "\u56fe\u7247\u4e2d\uff0c\u4f4d\u4e8e\u753b\u9762\u4e2d\u5fc3\u3001\u7a7f\u6a59\u8272\u9a6c\u7532\u7684\u5973\u6027\u7684\u52a8\u4f5c\u662f\u5426\u4e3a\u4e0a\u8f66\uff1f", "options": ["A. \u662f", "B. \u5426", "C. \u63d0\u95ee\u5bf9\u8c61\u4e0d\u5b58\u5728"], "answer": ["B"], "images": ["assets/20251112__1000501__1__accurate__11452286_1762928466801_148085_1.jpg"], "videos": []}, "Color": {"question": "\u56fe\u7247\u4e2d\uff0c\u4f4d\u4e8e\u753b\u9762\u4e0b\u65b9\u7684\u7537\u6027\u7684\u4e0a\u8863\u989c\u8272\u662f\u5426\u4e3a\u84dd\u8272\uff1f", "options": ["A. \u662f", "B. \u5426", "C. \u63d0\u95ee\u5bf9\u8c61\u4e0d\u5b58\u5728"], "answer": ["B"], "images": ["assets/20251203__1000501__1__accurate__11452199_1764741034101_110249_1.jpg"], "videos": []}, "Object Status": {"question": "\u56fe\u7247\u4e2d\uff0c\u4f4d\u4e8e\u753b\u9762\u4e0b\u65b9\u3001\u7a7f\u6a59\u8272\u9a6c\u7532\u7684\u5973\u6027\u7684\u72b6\u6001\u662f\u5426\u4e3a\u8e72\uff1f", "options": ["A. \u662f", "B. \u5426", "C. \u63d0\u95ee\u5bf9\u8c61\u4e0d\u5b58\u5728"], "answer": ["B"], "images": ["assets/20251205__1000501__1__accurate__11452291_1764910467372_167514_1.jpg"], "videos": []}, "Moving Direction": {"question": "\u89c6\u9891\u7b2c3\u5e27\u4e2d\uff0c\u4f4d\u4e8e\u753b\u9762\u5de6\u4e0a\u65b9\u7684\u8d27\u8f66\u8f66\u53a2\u76f8\u5bf9\u4e8e\u955c\u5934\u7684\u8fd0\u52a8\u65b9\u5411/\u671d\u5411\u662f\u5426\u4e3a\u53f3\uff1f", "options": ["A. \u662f", "B. \u5426", "C. \u63d0\u95ee\u5bf9\u8c61\u4e0d\u5b58\u5728"], "answer": ["B"], "images": [], "videos": ["assets/20250601__10014_01_01_44_3_0.mp4"]}, "Interaction": {"question": "\u89c6\u9891\u7b2c2\u5e27\u4e2d\uff0c\u4f4d\u4e8e\u753b\u9762\u53f3\u4e0a\u65b9\u7684\u4eba\u548c\u4f20\u9001\u5e26\u7684\u5173\u7cfb\u662f\u4ec0\u4e48\uff1f", "options": ["A. \u811a\u8e29", "B. \u5750", "C. \u501a\u9760", "D. \u6500\u722c", "E. \u8eba\u5367", "F. \u65e0\u6cd5\u8bc6\u522b", "G. \u65e0\u5173", "H. \u63d0\u95ee\u5bf9\u8c61\u4e0d\u5b58\u5728"], "answer": ["G"], "images": [], "videos": ["assets/20250601__10014_01_01_111_1_0.mp4"]}, "Attribute Comparison": {"question": "\u89c6\u9891\u7b2c4\u5e27\u4e2d\uff0c\u4f4d\u4e8e\u753b\u9762\u5de6\u4e0a\u65b9\u7684\u4eba\u548c\u4f4d\u4e8e\u753b\u9762\u53f3\u65b9\u7684\u4eba\u7684\u52a8\u4f5c\u76f8\u540c\u5417\uff1f", "options": ["A. \u76f8\u540c", "B. \u4e0d\u540c", "C. \u63d0\u95ee\u5bf9\u8c61\u4e0d\u5b58\u5728"], "answer": ["C"], "images": [], "videos": ["assets/20250601__10014_01_01_44_2_0.mp4"]}, "Quality": {"question": "\u5224\u65ad\u89c6\u9891\u7b2c1\u5e27\u5448\u73b0\u7684\u753b\u9762\u8d28\u91cf\u3002", "options": ["A. \u6e05\u6670", "B. \u4e00\u822c", "C. \u6a21\u7cca"], "answer": ["B"], "images": [], "videos": ["assets/20251202__1000301__1__inaccurate__11473493_1764641409736_115098_1.mp4"]}, "Scene": {"question": "\u5224\u65ad\u89c6\u9891\u7b2c1\u5e27\u5448\u73b0\u7684\u573a\u666f\u533a\u57df\u3002", "options": ["A. \u9ad8\u4f4d\u8d27\u67b6\u533a", "B. \u8f7b\u578b\u62e3\u9009\u8d27\u67b6\u533a", "C. \u5b89\u68c0\u673a\u533a", "D. \u4f20\u9001\u5e26\u533a", "E. \u5b58\u50a8\u533a", "F. \u6708\u53f0\u533a", "G. \u4ed3\u5185\u505c\u8f66\u533a", "H. \u666e\u901a\u529e\u516c\u533a", "I. \u5145\u7535\u533a", "J. \u4f11\u606f\u533a", "K. \u5176\u4ed6", "L. \u65e0\u6cd5\u8bc6\u522b"], "answer": ["F"], "images": [], "videos": ["assets/20251217__1000402__1__accurate__1939148_1765916424322_147794_1.mp4"]}, "Style": {"question": "\u5224\u65ad\u89c6\u9891\u7b2c1\u5e27\u5448\u73b0\u7684\u753b\u9762\u98ce\u683c\u3002", "options": ["A. \u5168\u5c40", "B. \u5c40\u90e8"], "answer": ["A"], "images": [], "videos": ["assets/20251211__1000801__1__inaccurate__11473483_1765399604190_133345_1.mp4"]}, "Physical Property": {"question": "\u4f20\u9001\u5e26\u548c\u6d41\u6c34\u7ebf\u6709\u4ec0\u4e48\u5173\u7cfb\uff1f\uff08\u5305\u62ec\u6570\u91cf\u5173\u7cfb\uff09", "options": ["A. \u4e00\u6761\u4f20\u9001\u5e26\u4e00\u822c\u627f\u8f7d\u4e00\u6761\u6d41\u6c34\u7ebf\u7684\u7269\u6599\u6d41\uff0c\u5b8c\u6574\u7684\u6d41\u6c34\u7ebf\u5e38\u7531\u591a\u6761\u4f20\u9001\u5e26\u7ec4\u5408\u800c\u6210\u3002", "B. \u4e00\u6761\u4f20\u9001\u5e26\u53ef\u4ee5\u540c\u65f6\u627f\u8f7d\u591a\u6761\u4e92\u4e0d\u76f8\u5173\u7684\u6d41\u6c34\u7ebf\uff0c\u800c\u4e00\u6761\u6d41\u6c34\u7ebf\u53ea\u7531\u4e00\u6761\u4f20\u9001\u5e26\u6784\u6210\u3002", "C. \u6d41\u6c34\u7ebf\u7684\u6570\u91cf\u5fc5\u5b9a\u4e0e\u4f20\u9001\u5e26\u6570\u91cf\u76f8\u7b49\uff0c\u4e8c\u8005\u5fc5\u987b\u4e00\u4e00\u5bf9\u5e94\u4e14\u4e0d\u53ef\u62c6\u5206\u3002", "D. \u4f20\u9001\u5e26\u4e3b\u8981\u7528\u4e8e\u7f8e\u89c2\u5c55\u793a\uff0c\u6d41\u6c34\u7ebf\u4e0d\u9700\u8981\u4f20\u9001\u5e26\u4e5f\u80fd\u5b8c\u6210\u7269\u6599\u8fde\u7eed\u8f93\u9001\u3002"], "answer": ["A"], "images": [], "videos": ["assets/11496377_1766517870741_0.mp4"]}, "Object Function": {"question": "\u8d27\u8f66\u8f66\u53a2\u7684\u4f5c\u7528\u662f\u4ec0\u4e48\uff1f", "options": ["A. \u7528\u4e8e\u63d0\u4f9b\u8f66\u8f86\u7684\u52a8\u529b\u548c\u9a71\u52a8\u3002", "B. \u7528\u4e8e\u505c\u653e\u65f6\u56fa\u5b9a\u8f66\u8f6e\u9632\u6b62\u79fb\u52a8\u3002", "C. \u7528\u4e8e\u88c5\u8f7d\u548c\u8fd0\u8f93\u8d27\u7269\u3002", "D. \u7528\u4e8e\u4e3a\u9a7e\u9a76\u5458\u63d0\u4f9b\u5bfc\u822a\u529f\u80fd\u3002"], "answer": ["C"], "images": [], "videos": ["assets/20251222__1000401__1__inaccurate__11473486_1766402985757_174427_1.mp4"]}, "Spatial Relation": {"question": "\u56fe\u7247\u4e2d\uff0c\u4f4d\u4e8e\u753b\u9762\u4e0a\u65b9\u3001\u7a7f\u9ec4\u8272\u9a6c\u7532\u7684\u4eba\u6b63\u5904\u4e8e\u8d27\u8f66\u8f66\u53a2\u5185\u90e8\uff0c\u53ef\u80fd\u4f1a\u53d1\u751f\u4ec0\u4e48\uff1f", "options": ["A. \u4eba\u53ef\u80fd\u88ab\u56f0\u5728\u5c01\u95ed\u7684\u8f66\u53a2\u5185\uff0c\u51fa\u73b0\u7f3a\u6c27\u6216\u4e2d\u6691\u7684\u98ce\u9669\u3002", "B. \u4eba\u4f1a\u81ea\u52a8\u83b7\u5f97\u5bf9\u8d27\u8f66\u7684\u9a7e\u9a76\u6743\u5e76\u63a7\u5236\u8f66\u8f86\u3002", "C. \u8d27\u8f66\u8f66\u53a2\u4f1a\u7acb\u5373\u53d8\u6210\u5f00\u653e\u5f0f\u7a7a\u95f4\uff0c\u5b8c\u5168\u901a\u98ce\u3002", "D. \u8f66\u8f86\u56e0\u6b64\u65e0\u6cd5\u542f\u52a8\u6216\u88ab\u7cfb\u7edf\u9501\u6b7b\uff0c\u505c\u6b62\u884c\u9a76\u3002", "E. \u63d0\u95ee\u5bf9\u8c61\u201c\u4eba\u201d\u4e0d\u5b58\u5728", "F. \u201c\u56fe\u7247\u4e2d\uff0c\u4f4d\u4e8e\u753b\u9762\u4e0a\u65b9\u3001\u7a7f\u9ec4\u8272\u9a6c\u7532\u7684\u4eba\u6b63\u5904\u4e8e\u8d27\u8f66\u8f66\u53a2\u5185\u90e8\u201d\u4e0e\u753b\u9762\u4e8b\u5b9e\u4e0d\u543b\u5408"], "answer": ["F"], "images": ["assets/20251125__1000703__1__inaccurate__1937884_1764015768200_156708_1.jpg"], "videos": []}, "Operator Role": {"question": "\u56fe\u7247\u4e2d\uff0c\u4f4d\u4e8e\u753b\u9762\u4e0b\u65b9\u3001\u7a7f\u6a59\u8272\u8863\u670d\u7684\u7537\u6027\u7684\u8eab\u4efd\u662f\u4ec0\u4e48\uff1f", "options": ["A. \u53f8\u673a", "B. \u4e58\u5ba2", "C. \u666e\u901a\u884c\u4eba", "D. \u5b89\u68c0\u5458", "E. \u7ec4\u957f", "F. \u65e0\u6cd5\u8bc6\u522b", "G. \u5176\u4ed6", "H. \u63d0\u95ee\u5bf9\u8c61\u4e0d\u5b58\u5728"], "answer": ["A"], "images": ["assets/20251125__1000501__1__accurate__11452278_1764054255568_130910_1.jpg"], "videos": []}, "Consistency": {"question": "\u4ee5\u4e0b\u51e0\u5f20\u56fe\u7247\u662f\u5426\u62cd\u6444\u4e8e\u540c\u4e00\u4e2a\u573a\u5730\uff1f", "options": ["A. \u662f", "B. \u5426", "C. \u65e0\u6cd5\u8bc6\u522b"], "answer": ["B"], "images": ["assets/11472774_1766547769261_0.jpg", "assets/20251212__1000501__1__accurate__11451285_1765521914464_153833_1.jpg", "assets/20251111__1000501__1__accurate__11452231_1762816094322_166562_1.jpg"], "videos": []}, "Common Sense": {"question": "\u4f20\u9001\u5e26\u662f\u5426\u53ef\u4ee5\u7528\u4e8e\u81ea\u52a8\u4f20\u9001\u8d27\u7269\u6216\u5305\u88f9\u5417\uff1f", "options": ["A. \u662f", "B. \u5426"], "answer": ["A"], "images": ["assets/20250601__10014_01_01_41_3_0.jpg"], "videos": []}, "Warehouse Access Control": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Key Post Attendance": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Personal Protective Equipment": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Elevated Work #1": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Elevated Work #2": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Elevated Work #3": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Fire Monitoring": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Dock Loading & Unloading #1": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Dock Loading & Unloading #2": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Dock Loading & Unloading #3": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Forklift Driving Compliance #1": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Forklift Driving Compliance #2": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Forklift Driving Compliance #3": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Forklift Driving Compliance #4": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Forklift Driving Compliance #5": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Forklift Driving Compliance #6": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Forklift Driving Compliance #7": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Forklift Driving Compliance #8": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Forklift Driving Compliance #9": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}, "Conveyor Operation Compliance": {"question": "\u201c\u9ad8\u4f4d\u8d27\u67b6\u533a\u672a\u6234\u5b89\u5168\u5e3d\u201d\u98ce\u9669\u7684\u5b9a\u4e49\u4e0e\u7279\u5f81\u5982\u4e0b\uff1a\u5728\u9ad8\u4f4d\u8d27\u67b6\u533a\u57df\uff0c\u4eba\u5458\u5728\u975e\u767b\u9ad8\u72b6\u6001\uff0c\u672a\u6234\u5b89\u5168\u5e3d\u3002\u56fe\u7247\u4e2d\u6709\u65e0\u8be5\u98ce\u9669\uff1f", "options": ["A. \u6709\u98ce\u9669", "B. \u65e0\u98ce\u9669"], "answer": ["A"], "images": ["assets/20251111__1000501__1__accurate__11452284_1762822881508_102821_1.jpg"], "videos": []}};
+        
+        // 模态框控制
+        const modal = document.getElementById('modal');
+        const closeBtn = document.getElementsByClassName('close')[0];
+        
+        closeBtn.onclick = function() {
+            modal.style.display = "none";
+        }
+        
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+        
+        // 全屏图片查看器控制
+        const fullscreenImage = document.getElementById('fullscreen-image');
+        const fullscreenImg = document.getElementById('fullscreen-img');
+        const fullscreenCloseBtn = document.getElementsByClassName('fullscreen-close')[0];
+        
+        function showFullscreenImage(imageSrc) {
+            console.log('显示全屏图片:', imageSrc);
+            fullscreenImg.src = imageSrc;
+            fullscreenImage.style.display = 'flex';
+            console.log('全屏图片容器样式:', fullscreenImage.style.display);
+        }
+        
+        function hideFullscreenImage() {
+            console.log('隐藏全屏图片');
+            fullscreenImage.style.display = 'none';
+        }
+        
+        fullscreenCloseBtn.onclick = function() {
+            console.log('点击关闭按钮');
+            hideFullscreenImage();
+        }
+        
+        // 点击背景关闭全屏图片
+        fullscreenImage.onclick = function(event) {
+            console.log('点击背景，event.target:', event.target);
+            if (event.target == fullscreenImage) {
+                hideFullscreenImage();
+            }
+        }
+        
+        // 按 ESC 键关闭全屏图片
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                hideFullscreenImage();
+            }
+        });
+
+        // 辅助函数：获取节点的层级
+        function getNodeLevel(nodeId) {
+            const plotElement = document.getElementById('plot');
+            const traces = plotElement._fullData;
+            
+            for (let i = 0; i < traces.length; i++) {
+                const trace = traces[i];
+                if (trace.ids) {
+                    const index = trace.ids.indexOf(nodeId);
+                    if (index !== -1 && trace.parents) {
+                        const parent = trace.parents[index];
+                        // 如果 parent 是空字符串，说明这是 l0 层节点（根节点）
+                        if (parent === '') {
+                            return 0;
+                        }
+                        // 检查父节点是否是根节点
+                        const parentIndex = trace.ids.indexOf(parent);
+                        if (parentIndex !== -1 && trace.parents[parentIndex] === '') {
+                            return 1;  // l1 层
+                        }
+                        return 2;  // l2 层（最外层）
+                    }
+                }
+            }
+            return -1;
+        }
+        
+        document.getElementById('plot').on('plotly_sunburstclick', function(data) {
+            console.log('点击事件触发:', data);
+            
+            if (!data || !data.points || data.points.length === 0) {
+                console.log('点击事件数据无效');
+                return;
+            }
+            
+            const point = data.points[0];
+            const label = point.label;
+            const id = point.id;
+            const level = getNodeLevel(id);
+            
+            console.log('点击详情:', { label, id, level });
+            
+            // 只处理最外层（level 2），显示模态框
+            if (level === 2) {
+                // 将 <br> 转换回原始标签（去掉 <br>）
+                const originalLabel = label.replace(/<br>/g, '');
+                console.log('原始标签:', originalLabel);
+                console.log('nodeContentMap keys:', Object.keys(nodeContentMap));
+                console.log('是否存在内容:', !!nodeContentMap[originalLabel]);
+                
+                if (nodeContentMap[originalLabel]) {
+                    console.log('调用 showContentModal');
+                    showContentModal(originalLabel, nodeContentMap[originalLabel]);
+                } else {
+                    console.log('未找到节点内容:', originalLabel);
+                }
+            } else {
+                console.log('不是最外层，不处理。当前层级:', level);
+            }
+        });
+        
+        function showContentModal(label, content) {
+            console.log('showContentModal 被调用，content:', content);
+            console.log('content.videos:', content.videos);
+            console.log('content.images:', content.images);
+
+            document.getElementById('modal-title').textContent = label;
+            document.getElementById('modal-question').textContent = content.question || '';
+            
+            // 显示选项
+            const optionsDiv = document.getElementById('modal-options');
+            optionsDiv.innerHTML = '';
+            if (content.options && content.options.length > 0) {
+                content.options.forEach(option => {
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = 'modal-option';
+                    optionDiv.textContent = option;
+                    optionsDiv.appendChild(optionDiv);
+                });
+            }
+            
+            // 显示答案
+            const answerDiv = document.getElementById('modal-answer');
+            if (content.answer && content.answer.length > 0) {
+                answerDiv.textContent = '答案: ' + content.answer.join(', ');
+                answerDiv.style.display = 'block';
+            } else {
+                answerDiv.style.display = 'none';
+            }
+            
+            // 显示图片
+            const mediaDiv = document.getElementById('modal-media');
+            mediaDiv.innerHTML = '';
+            
+            content.images.forEach(imagePath => {
+                const img = document.createElement('img');
+                img.src = imagePath;
+                img.className = 'modal-image';
+                img.onerror = function() { this.style.display = 'none'; };
+                img.onclick = function() {
+                    showFullscreenImage(imagePath);
+                };
+                mediaDiv.appendChild(img);
+            });
+            
+            if (content.videos && content.videos.length > 0) {
+                const videoTitle = document.createElement('div');
+                videoTitle.className = 'modal-media-title';
+                videoTitle.textContent = '视频:';
+                mediaDiv.appendChild(videoTitle);
+                
+                content.videos.forEach((videoPathOrArray, index) => {
+                    // 处理两种格式：字符串或数组
+                    let videoUrl = '';
+                    if (typeof videoPathOrArray === 'string') {
+                        videoUrl = videoPathOrArray;
+                    } else if (Array.isArray(videoPathOrArray) && videoPathOrArray.length > 0) {
+                        videoUrl = videoPathOrArray[0];
+                    }
+                    
+                    if (videoUrl) {
+                        // --- 强制将 http 转为 https ---
+                        if (videoUrl.startsWith('http://')) {
+                            videoUrl = videoUrl.replace('http://', 'https://');
+                        }
+                        const video = document.createElement('video');
+                        video.className = 'modal-video';
+                        video.controls = true;
+                        video.autoplay = false;
+                        video.preload = 'metadata';
+                        video.style.width = '100%';
+                        video.style.maxHeight = '400px';
+                        video.playsInline = true;  // 兼容iOS和移动设备
+                        // 移除 crossOrigin 属性，避免跨域验证失败
+                        // video.crossOrigin = 'anonymous';
+                        
+                        // 避免Mixed Content错误
+                        let finalVideoUrl = videoUrl;
+                        if (window.location.protocol === 'https:' && videoUrl.startsWith('http://')) {
+                            console.log('检测到Mixed Content，自动将视频URL从HTTP转换为HTTPS:', videoUrl);
+                            finalVideoUrl = videoUrl.replace('http://', 'https://')
+                        }
+                        
+                        // 直接设置视频src，而不是使用source元素（Chrome兼容性更好）
+                        video.src = finalVideoUrl;
+                        
+                        // 添加错误处理
+                        video.onerror = function(e) {
+                            console.error('视频加载失败:', finalVideoUrl, e);
+                            console.error('原始URL:', videoUrl);
+                            console.error('视频元素错误:', video.error);
+                            console.error('网络状态:', video.networkState);
+                            console.error('就绪状态:', video.readyState);
+                            this.style.display = 'none';
+                            
+                            // 显示错误信息和手动下载链接
+                            const errorMsg = document.createElement('div');
+                            errorMsg.style.color = 'red';
+                            errorMsg.style.marginTop = '10px';
+                            errorMsg.style.fontSize = '12px';
+                            errorMsg.style.padding = '10px';
+                            errorMsg.style.border = '2px solid #ff9800';
+                            errorMsg.style.borderRadius = '8px';
+                            errorMsg.innerHTML = `
+                                <h4 style="margin: 0 0 10px 0; color: #e65100;">⚠️ 由于浏览器的跨域安全政策限制，视频无法直接加载。</h4>
+                                <br>
+                                <a href="${finalVideoUrl}" target="_blank" style="color: blue; text-decoration: underline;">
+                                    🎬 点击此处在新窗口中打开视频
+                                </a><br>
+                                <br>
+                            `;
+                            mediaDiv.appendChild(errorMsg);
+                        };
+                        
+                        // 添加加载元数据处理 - 自动加载第一帧
+                        video.onloadedmetadata = function() {
+                            console.log('视频元数据加载完成:', videoUrl);
+                            console.log('视频时长:', video.duration);
+                            console.log('视频尺寸:', video.videoWidth, 'x', video.videoHeight);
+                            
+                            // 跳转到第一帧并暂停
+                            video.currentTime = 0.1;  // 跳转到0.1秒位置，确保有画面
+                        };
+                        
+                        // 当第一帧加载完成后，暂停视频
+                        video.onseeked = function() {
+                            console.log('视频第一帧已加载:', videoUrl);
+                            video.pause();
+                        };
+                        
+                        // 添加加载数据处理
+                        video.onloadeddata = function() {
+                            console.log('视频数据加载完成:', videoUrl);
+                        };
+                        
+                        // 添加播放处理
+                        video.onplay = function() {
+                            console.log('视频开始播放:', videoUrl);
+                        };
+                        
+                        // 添加暂停处理
+                        video.onpause = function() {
+                            console.log('视频暂停:', videoUrl);
+                        };
+                        
+                        mediaDiv.appendChild(video);
+                    }
+                });
+            }
+
+            modal.style.display = "flex";
+        }
+    </script>
+<script>
+(function(){
+  var BIAS_DATA=[{"name":"GPT-5.4","fam":"GPT","x":0.1591,"y":0.758,"bias":0.071,"f1":0.575},{"name":"GPT-5.5","fam":"GPT","x":0.1883,"y":0.855,"bias":-0.224,"f1":0.606},{"name":"Claude-Sonnet-4.6","fam":"Claude","x":0.2829,"y":0.8907,"bias":-0.637,"f1":0.493},{"name":"Claude-Opus-4.7","fam":"Claude","x":0.103,"y":0.7703,"bias":0.023,"f1":0.587},{"name":"Gemini-3.1-Pro","fam":"Gemini","x":0.3425,"y":0.9472,"bias":-0.798,"f1":0.508},{"name":"Qwen3.7-Plus","fam":"Qwen","x":0.2912,"y":0.9079,"bias":-0.611,"f1":0.516},{"name":"Kimi-K2.6","fam":"Kimi","x":0.2836,"y":0.8784,"bias":-0.508,"f1":0.508},{"name":"Kimi-K2-Thinking","fam":"Kimi","x":0.4885,"y":0.6985,"bias":-0.481,"f1":0.311},{"name":"Qwen3-VL-8B","fam":"Qwen","x":0.196,"y":0.726,"bias":-0.107,"f1":0.46},{"name":"Qwen3-VL-32B","fam":"Qwen","x":0.1867,"y":0.7359,"bias":-0.188,"f1":0.437},{"name":"Qwen3-VL-235B","fam":"Qwen","x":0.2556,"y":0.871,"bias":-0.467,"f1":0.517},{"name":"Qwen3-VL-Plus","fam":"Qwen","x":0.6153,"y":0.9865,"bias":-0.972,"f1":0.325},{"name":"Qwen3.5-Plus","fam":"Qwen","x":0.2354,"y":0.8919,"bias":-0.451,"f1":0.576},{"name":"InternVL3.5","fam":"InternVL","x":0.6067,"y":0.9619,"bias":-0.915,"f1":0.345},{"name":"LLaVA-v1.6-7B","fam":"LLaVA","x":0.0612,"y":0.1027,"bias":0.878,"f1":0.095},{"name":"MiMo-VL-7B-RL","fam":"MiMo","x":0.1467,"y":0.6794,"bias":0.084,"f1":0.533},{"name":"GLM-4.7","fam":"GLM","x":0.5063,"y":0.7101,"bias":-0.493,"f1":0.47},{"name":"GLM-5.2","fam":"GLM","x":0.4247,"y":0.7572,"bias":-0.317,"f1":0.52},{"name":"MiniMax-M2.1","fam":"MiniMax","x":0.08,"y":0.4269,"bias":0.764,"f1":0.468},{"name":"MiniMax-M2.5","fam":"MiniMax","x":0.1179,"y":0.4885,"bias":0.346,"f1":0.48},{"name":"Human Expert","fam":"Human","x":0.02,"y":0.98,"bias":0.01,"f1":0.97}];
+  var FAM_COLOR={'Qwen':'#377eb8','GPT':'#e41a1c','Claude':'#984ea4','Gemini':'#c51b8a','Kimi':'#ff7f00','GLM':'#a6562d','MiniMax':'#f781bf','InternVL':'#00b8a9','LLaVA':'#b3b300','MiMo':'#17becf','Human':'#111111'};
+  var GOLD='#FFD200';
+  var FAMS=['Qwen','GPT','Claude','Gemini','Kimi','GLM','MiniMax','InternVL','LLaVA','MiMo'];
+  var MAXB=Math.max.apply(null,BIAS_DATA.map(function(d){return Math.abs(d.bias);}));
+  function tint(hex){var c=hex.replace('#','');var r=parseInt(c.substr(0,2),16),g=parseInt(c.substr(2,2),16),b=parseInt(c.substr(4,2),16);var m=function(v){return Math.round(v+(255-v)*0.82);};return 'rgb('+m(r)+','+m(g)+','+m(b)+')';}
+  var SELECTED={};
+  function hasSel(){for(var k in SELECTED){if(SELECTED[k])return true;}return false;}
+  function isVisible(f){return hasSel()? !!SELECTED[f] : true;}
+  function traces(){
+    var arr=[];
+    FAMS.forEach(function(f){
+      var pts=BIAS_DATA.filter(function(d){return d.fam===f;});
+      var vis=isVisible(f);
+      var sym=(f==='Human')?'star':'circle';
+      var xs=pts.map(function(d){return d.x;});
+      var ys=pts.map(function(d){return d.y;});
+      // 外层光晕：大小 ∝ |bias|，半透明，不交互不入图例
+      arr.push({
+        type:'scatter', mode:'markers', name:f, legendgroup:f, visible:vis, showlegend:false,
+        x:xs, y:ys, hoverinfo:'skip',
+        marker:{ symbol:sym, size:pts.map(function(d){return 16+Math.abs(d.bias)/MAXB*52;}),
+          color:FAM_COLOR[f], opacity:0.32, line:{width:0} }
+      });
+      // 内层实心点：承载 hover 与图例
+      arr.push({
+        type:'scatter', mode:'markers', name:f, legendgroup:f, visible:vis, showlegend:true,
+        x:xs, y:ys,
+        hoverlabel:{ bgcolor:tint(FAM_COLOR[f]), bordercolor:FAM_COLOR[f], font:{color:'#1f2540', size:13} },
+        customdata:pts.map(function(d){return [d.name,d.bias,d.f1];}),
+        hovertemplate:'<b>%{customdata[0]}</b><br>FP: %{x:.2f} &nbsp; Recall: %{y:.2f}<br>Bias: %{customdata[1]:.2f} &nbsp; F1: %{customdata[2]:.2f}<extra></extra>',
+        marker:{ symbol:sym, size:11,
+          color:FAM_COLOR[f], opacity:1, line:{color:'#ffffff',width:1.2} }
+      });
+    });
+    // Human Expert：明亮黄色星形参考点，恒显示、无光晕、白细边，星星右侧直接写文字
+    var hp=BIAS_DATA.filter(function(d){return d.fam==='Human';});
+    if(hp.length){
+      var hx=hp.map(function(d){return d.x;});
+      var hy=hp.map(function(d){return d.y;});
+      arr.push({ type:'scatter', mode:'markers+text', name:'Human Expert', visible:true, showlegend:false, cliponaxis:false,
+        x:hx, y:hy, text:hp.map(function(){return 'Human Expert';}), textposition:'top center', textfont:{size:14, color:'#5b4300'},
+        customdata:hp.map(function(d){return [d.name,d.bias,d.f1];}),
+        hoverlabel:{ bgcolor:tint(GOLD), bordercolor:GOLD, font:{color:'#1f2540', size:13} },
+        hovertemplate:'<b>%{customdata[0]}</b><br>FP: %{x:.2f} &nbsp; Recall: %{y:.2f}<br>Bias: %{customdata[1]:.2f} &nbsp; F1: %{customdata[2]:.2f}<extra></extra>',
+        marker:{ symbol:'star', size:22, color:GOLD, opacity:1, line:{color:'#ffffff',width:1} } });
+    }
+    // Deployment zone 透明 hover 点：悬停显示范围
+    arr.push({ type:'scatter', mode:'markers', name:'Deployment Zone', visible:true, showlegend:false,
+      x:[0.035], y:[0.92],
+      hovertemplate:'<b>Industrial-grade deployment zone</b><br>FP \u2264 5% &nbsp; Recall \u2265 90%<extra></extra>',
+      marker:{ size:38, color:'rgba(76,175,80,0)', line:{width:0} } });
+    return arr;
+  }
+  var layout={
+    margin:{l:104,r:24,t:16,b:70}, hovermode:'closest',
+    hoverlabel:{ bgcolor:'#ffffff', bordercolor:'#d7daf0', font:{ color:'#1f2540', size:13 } },
+    plot_bgcolor:'#ffffff', paper_bgcolor:'#ffffff',
+    xaxis:{title:{text:'False-Positive Rate (safe \u2192 risk)',font:{size:15}},range:[0,0.7],gridcolor:'#eef1f8',zeroline:false},
+    yaxis:{title:{text:'Risk Recall',font:{size:15}},range:[0,1.1],tickmode:'array',tickvals:[0,0.2,0.4,0.6,0.8,1.0],ticktext:['0','0.2','0.4','0.6','0.8','1.0'],gridcolor:'#eef1f8',zeroline:false},
+    showlegend:true, legend:{orientation:'h',y:-0.18},
+    shapes:[{type:'rect',x0:0,x1:0.05,y0:0.9,y1:1.0,fillcolor:'#4caf50',opacity:0.15,line:{color:'#4caf50',dash:'dot',width:1.5},layer:'below'}],
+    annotations:[{x:0.055,y:0.95,text:'Deployment zone',showarrow:false,xanchor:'left',font:{size:12,color:'#2e7d32'}}]
+  };
+  var cfg={displayModeBar:false,responsive:true};
+  function draw(){ Plotly.newPlot('bias-plot',traces(),layout,cfg); }
+  function syncControls(){
+    var wrap=document.getElementById('bias-controls'); if(!wrap) return;
+    var any=hasSel();
+    wrap.querySelectorAll('.bias-btn').forEach(function(x){
+      var f=x.getAttribute('data-fam');
+      if(f==='all'){ x.classList.toggle('active', !any); }
+      else { x.classList.toggle('active', !!SELECTED[f]); }
+    });
+  }
+  function buildControls(){
+    var wrap=document.getElementById('bias-controls'); if(!wrap) return;
+    wrap.innerHTML='';
+    var all=document.createElement('button');
+    all.className='bias-btn active'; all.setAttribute('data-fam','all'); all.textContent='All Models';
+    all.addEventListener('click',function(){ SELECTED={}; syncControls(); draw(); });
+    wrap.appendChild(all);
+    FAMS.forEach(function(f){
+      var b=document.createElement('button');
+      b.className='bias-btn'; b.setAttribute('data-fam',f); b.textContent=f;
+      b.addEventListener('click',function(){
+        if(SELECTED[f]){ delete SELECTED[f]; } else { SELECTED[f]=true; }
+        syncControls(); draw();
+      });
+      wrap.appendChild(b);
+    });
+  }
+  function init(){
+    var el=document.getElementById('bias-plot'); if(!el||!window.Plotly) return;
+    draw();
+    buildControls();
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
+})();
+</script>
+</body>
+</html>
+ 
