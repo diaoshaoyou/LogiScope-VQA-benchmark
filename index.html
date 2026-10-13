@@ -658,7 +658,7 @@
             flex-wrap: wrap; gap: 8px 16px;
             margin: 14px auto 0; font-size: 14.5px; color: var(--muted);
         }
-        .hero-affil .affil { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
+        .hero-affil .affil { display: inline-flex; align-items: center; gap: 7px; font-weight: 400; }
         .hero-affil .affil img { max-height: 22px; max-width: 88px; height: auto; width: auto; object-fit: contain; }
         .hero-affil .affil img[alt="Alibaba"] { max-height: 18px; max-width: 74px; }
         .hero-affil .affil-sep { color: #c4c9d4; }
@@ -723,12 +723,12 @@
         }
         .footer-inner {
             max-width: 1200px; margin: 0 auto;
-            display: flex; align-items: center; justify-content: space-between;
-            gap: 16px; flex-wrap: wrap; font-size: 14px;
+            display: flex; flex-direction: column; align-items: center;
+            gap: 6px; font-size: 14px;
         }
         .footer-inner a { color: #a9c4ff; text-decoration: none; font-weight: 600; }
         .footer-inner a:hover { text-decoration: underline; }
-        .footer-license { max-width: 1200px; margin: 10px auto 0; font-size: 13px; color: #8a93b5; text-align: center; }
+        .footer-license { max-width: 1200px; margin: 10px auto 0; font-size: 13px; color: #8a93b5; text-align: center; border-top: 1px solid rgba(255,255,255,.1); padding-top: 12px; }
         .footer-license a { color: #a9c4ff; text-decoration: none; font-weight: 600; }
         .footer-license a:hover { text-decoration: underline; }
 
@@ -754,7 +754,7 @@
         .badge-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 8px; }
         .badge { font-size: 12.5px; font-weight: 600; color: #fff; padding: 5px 12px; border-radius: 999px; letter-spacing: .2px; text-decoration: none; transition: all .2s ease; }
         .badge:hover { transform: translateY(-1px); filter: brightness(1.05); }
-        .badge.b-blue { background: #3b82f6; } .badge.b-yellow { background: #eab308; }
+        .badge.b-arxiv { background: #c92c2c; box-shadow: 0 2px 8px rgba(217,87,87,.3); } .badge.b-yellow { background: #eab308; }
         .badge.b-orange { background: #f97316; } .badge.b-green { background: #22c55e; }
         .badge.b-dark { background: #24292e; }
         .lead { max-width: 880px; margin: 0 auto 30px; font-size: 16.5px; line-height: 1.85; color: #000; text-align: left; }
@@ -808,7 +808,7 @@
             <span class="affil"><img src="assets/zju.png" alt="Zhejiang University">Zhejiang University</span>
         </div>
         <div class="badge-row" style="margin-top:16px">
-            <a href="https://arxiv.org/abs/2609.09790" target="_blank" rel="noopener" class="badge b-blue">📄 Paper</a>
+            <a href="https://arxiv.org/abs/2609.09790" target="_blank" rel="noopener" class="badge b-arxiv"><svg viewBox="0 0 24 24" width="14" height="14" fill="#fff" style="display:inline-block;vertical-align:-3px;margin-right:5px;"><path d="M6 2c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6H6zm7 7V2.5L18.5 9H13z"/></svg>Paper</a>
             <a href="https://huggingface.co/datasets/zhouhanjing/LogiScope-VQA-preview" target="_blank" rel="noopener" class="badge b-yellow">🤗 Dataset (Preview)</a>
             <a href="https://github.com/diaoshaoyou/LogiScope-VQA-benchmark" target="_blank" rel="noopener" class="badge b-dark"><svg viewBox="0 0 24 24" width="15" height="15" fill="#fff" style="display:inline-block;vertical-align:-3px;margin-right:5px;"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>GitHub</a>
         </div>
@@ -995,9 +995,9 @@
     <footer class="site-footer">
         <div class="footer-inner">
             <span>© 2026 LogiScope-VQA</span>
-            <span><a href="mailto:zhj85393@gmail.com">zhj85393@gmail.com</a> · <a href="mailto:mzyin256@gmail.com">mzyin256@gmail.com</a></span>
+            <span>Contact: <a href="mailto:zhj85393@gmail.com">zhj85393@gmail.com</a> &nbsp;·&nbsp; <a href="mailto:mzyin256@gmail.com">mzyin256@gmail.com</a></span>
         </div>
-        <div class="footer-license">Dataset licensed under <a href="https://github.com/diaoshaoyou/LogiScope-VQA-benchmark/blob/main/LICENSE" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a> · Code licensed under <a href="https://github.com/diaoshaoyou/LogiScope-VQA-benchmark/blob/main/CODE_LICENSE" target="_blank" rel="noopener">MIT</a></div>
+        <div class="footer-license">Dataset licensed under <a href="https://github.com/diaoshaoyou/LogiScope-VQA-benchmark/blob/main/LICENSE" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a> &nbsp;·&nbsp; Code licensed under <a href="https://github.com/diaoshaoyou/LogiScope-VQA-benchmark/blob/main/CODE_LICENSE" target="_blank" rel="noopener">MIT</a></div>
     </footer>
 
     <!-- 模态框 -->
@@ -1015,7 +1015,7 @@
     <!-- 全屏图片查看器 -->
     <div id="fullscreen-image" class="fullscreen-image">
         <span class="fullscreen-close">&times;</span>
-        <img id="fullscreen-img" src="" alt="全屏图片">
+        <img id="fullscreen-img" src="" alt="Fullscreen image">
     </div>
     
     <script> 
@@ -1209,25 +1209,25 @@
         const fullscreenCloseBtn = document.getElementsByClassName('fullscreen-close')[0];
         
         function showFullscreenImage(imageSrc) {
-            console.log('显示全屏图片:', imageSrc);
+            console.log('Showing fullscreen image:', imageSrc);
             fullscreenImg.src = imageSrc;
             fullscreenImage.style.display = 'flex';
-            console.log('全屏图片容器样式:', fullscreenImage.style.display);
+            console.log('Fullscreen container display:', fullscreenImage.style.display);
         }
         
         function hideFullscreenImage() {
-            console.log('隐藏全屏图片');
+            console.log('Hiding fullscreen image');
             fullscreenImage.style.display = 'none';
         }
         
         fullscreenCloseBtn.onclick = function() {
-            console.log('点击关闭按钮');
+            console.log('Close button clicked');
             hideFullscreenImage();
         }
         
-        // 点击背景关闭全屏图片
+        // Click background to close fullscreen
         fullscreenImage.onclick = function(event) {
-            console.log('点击背景，event.target:', event.target);
+            console.log('Background clicked, event.target:', event.target);
             if (event.target == fullscreenImage) {
                 hideFullscreenImage();
             }
@@ -1268,10 +1268,10 @@
         }
         
         document.getElementById('plot').on('plotly_sunburstclick', function(data) {
-            console.log('点击事件触发:', data);
+            console.log('Click event triggered:', data);
             
             if (!data || !data.points || data.points.length === 0) {
-                console.log('点击事件数据无效');
+                console.log('Invalid click event data');
                 return;
             }
             
@@ -1280,29 +1280,29 @@
             const id = point.id;
             const level = getNodeLevel(id);
             
-            console.log('点击详情:', { label, id, level });
+            console.log('Click details:', { label, id, level });
             
-            // 只处理最外层（level 2），显示模态框
+            // Only handle outermost layer (level 2) to show modal
             if (level === 2) {
                 // 将 <br> 转换回原始标签（去掉 <br>）
                 const originalLabel = label.replace(/<br>/g, '');
-                console.log('原始标签:', originalLabel);
+                console.log('Original label:', originalLabel);
                 console.log('nodeContentMap keys:', Object.keys(nodeContentMap));
-                console.log('是否存在内容:', !!nodeContentMap[originalLabel]);
+                console.log('Has content:', !!nodeContentMap[originalLabel]);
                 
                 if (nodeContentMap[originalLabel]) {
-                    console.log('调用 showContentModal');
+                    console.log('Calling showContentModal');
                     showContentModal(originalLabel, nodeContentMap[originalLabel]);
                 } else {
-                    console.log('未找到节点内容:', originalLabel);
+                    console.log('Node content not found:', originalLabel);
                 }
             } else {
-                console.log('不是最外层，不处理。当前层级:', level);
+                console.log('Not outermost layer, skipping. Current level:', level);
             }
         });
         
         function showContentModal(label, content) {
-            console.log('showContentModal 被调用，content:', content);
+            console.log('showContentModal called, content:', content);
             console.log('content.videos:', content.videos);
             console.log('content.images:', content.images);
 
@@ -1324,7 +1324,7 @@
             // 显示答案
             const answerDiv = document.getElementById('modal-answer');
             if (content.answer && content.answer.length > 0) {
-                answerDiv.textContent = '答案: ' + content.answer.join(', ');
+                answerDiv.textContent = 'Answer: ' + content.answer.join(', ');
                 answerDiv.style.display = 'block';
             } else {
                 answerDiv.style.display = 'none';
@@ -1348,7 +1348,7 @@
             if (content.videos && content.videos.length > 0) {
                 const videoTitle = document.createElement('div');
                 videoTitle.className = 'modal-media-title';
-                videoTitle.textContent = '视频:';
+                videoTitle.textContent = 'Video:';
                 mediaDiv.appendChild(videoTitle);
                 
                 content.videos.forEach((videoPathOrArray, index) => {
@@ -1372,30 +1372,30 @@
                         video.preload = 'metadata';
                         video.style.width = '100%';
                         video.style.maxHeight = '400px';
-                        video.playsInline = true;  // 兼容iOS和移动设备
-                        // 移除 crossOrigin 属性，避免跨域验证失败
+                        video.playsInline = true;  // Compatible with iOS and mobile devices
+                        // Remove crossOrigin to avoid CORS failure
                         // video.crossOrigin = 'anonymous';
                         
-                        // 避免Mixed Content错误
+                        // Avoid Mixed Content error
                         let finalVideoUrl = videoUrl;
                         if (window.location.protocol === 'https:' && videoUrl.startsWith('http://')) {
-                            console.log('检测到Mixed Content，自动将视频URL从HTTP转换为HTTPS:', videoUrl);
+                            console.log('Mixed Content detected, converting video URL from HTTP to HTTPS:', videoUrl);
                             finalVideoUrl = videoUrl.replace('http://', 'https://')
                         }
                         
-                        // 直接设置视频src，而不是使用source元素（Chrome兼容性更好）
+                        // Set video src directly (better Chrome compatibility)
                         video.src = finalVideoUrl;
                         
-                        // 添加错误处理
+                        // Error handling
                         video.onerror = function(e) {
-                            console.error('视频加载失败:', finalVideoUrl, e);
-                            console.error('原始URL:', videoUrl);
-                            console.error('视频元素错误:', video.error);
-                            console.error('网络状态:', video.networkState);
-                            console.error('就绪状态:', video.readyState);
+                            console.error('Video load failed:', finalVideoUrl, e);
+                            console.error('Original URL:', videoUrl);
+                            console.error('Video element error:', video.error);
+                            console.error('Network state:', video.networkState);
+                            console.error('Ready state:', video.readyState);
                             this.style.display = 'none';
                             
-                            // 显示错误信息和手动下载链接
+                            // Show error info and manual open link
                             const errorMsg = document.createElement('div');
                             errorMsg.style.color = 'red';
                             errorMsg.style.marginTop = '10px';
@@ -1404,45 +1404,45 @@
                             errorMsg.style.border = '2px solid #ff9800';
                             errorMsg.style.borderRadius = '8px';
                             errorMsg.innerHTML = `
-                                <h4 style="margin: 0 0 10px 0; color: #e65100;">⚠️ 由于浏览器的跨域安全政策限制，视频无法直接加载。</h4>
+                                <h4 style="margin: 0 0 10px 0; color: #e65100;">⚠️ Video cannot be loaded directly due to browser CORS security restrictions.</h4>
                                 <br>
                                 <a href="${finalVideoUrl}" target="_blank" style="color: blue; text-decoration: underline;">
-                                    🎬 点击此处在新窗口中打开视频
+                                    🎬 Click here to open the video in a new window
                                 </a><br>
                                 <br>
                             `;
                             mediaDiv.appendChild(errorMsg);
                         };
                         
-                        // 添加加载元数据处理 - 自动加载第一帧
+                        // Load metadata handler — auto-seek to first frame
                         video.onloadedmetadata = function() {
-                            console.log('视频元数据加载完成:', videoUrl);
-                            console.log('视频时长:', video.duration);
-                            console.log('视频尺寸:', video.videoWidth, 'x', video.videoHeight);
+                            console.log('Video metadata loaded:', videoUrl);
+                            console.log('Video duration:', video.duration);
+                            console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
                             
-                            // 跳转到第一帧并暂停
-                            video.currentTime = 0.1;  // 跳转到0.1秒位置，确保有画面
+                            // Seek to first frame and pause
+                            video.currentTime = 0.1;  // Jump to 0.1s to ensure a visible frame
                         };
                         
-                        // 当第一帧加载完成后，暂停视频
+                        // Pause once first frame is loaded
                         video.onseeked = function() {
-                            console.log('视频第一帧已加载:', videoUrl);
+                            console.log('Video first frame loaded:', videoUrl);
                             video.pause();
                         };
                         
-                        // 添加加载数据处理
+                        // Loadeddata handler
                         video.onloadeddata = function() {
-                            console.log('视频数据加载完成:', videoUrl);
+                            console.log('Video data loaded:', videoUrl);
                         };
                         
-                        // 添加播放处理
+                        // Play handler
                         video.onplay = function() {
-                            console.log('视频开始播放:', videoUrl);
+                            console.log('Video playback started:', videoUrl);
                         };
                         
-                        // 添加暂停处理
+                        // Pause handler
                         video.onpause = function() {
-                            console.log('视频暂停:', videoUrl);
+                            console.log('Video paused:', videoUrl);
                         };
                         
                         mediaDiv.appendChild(video);
